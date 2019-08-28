@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HOST=${MARS_IP}
-INTERFACE=${OFTEST_INTERFACE}
+INTERFACES=${OFTEST_INTERFACE}
 DEBUG=info
 
 # check dependencies
@@ -19,7 +19,7 @@ pip2 install --user -r requirements.txt 2>&1
 echo "Start testing `date +%Y/%m/%d-%H:%M:%S`"
 
 # run test in mars/
-sudo ./oft --host=${HOST} -i 1@${INTERFACE} --of-version=1.3 --mars=MARS --test-dir=mars --disable-ipv6 --debug=${DEBUG} $@
+sudo ./oft --host=${HOST} ${INTERFACES} --of-version=1.3 --mars=MARS --test-dir=mars --disable-ipv6 --debug=${DEBUG} $@
 
 if [[ $? -ne 0 ]]; then
     echo "Testing FAIL! `date +%Y/%m/%d-%H:%M:%S`"
