@@ -8,9 +8,9 @@ Test environment
     +--------+     +--------+    
     | spine0 |     | spine1 |
     +--------+     +--------+
-        |              |
-        +--------------+     
-        |              |
+   49 |  | 50      49 |  | 50
+      |  +------------+  |   
+   49 |  | 50      49 |  | 50
     +--------+     +--------+
     |  leaf0 |     |  leaf1 |
     +--------+     +--------+
@@ -30,6 +30,7 @@ import config as test_config
 import requests
 import time
 import utils
+from utils import tenant,uplink_segment
 from telnetlib import Telnet
 
 URL = test_config.API_BASE_URL
@@ -42,6 +43,11 @@ def setup_configuration():
     for device in test_config.devices:
         if config_exists(device) == False:
             config_add(device)
+
+    clear_tenant()
+    clear_uplink_segment()
+
+    utils.wait_for_system_stable()
 
 def config_exists(device):
     response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
@@ -72,6 +78,27 @@ def config_add(device):
 
     response = requests.post(URL+'v1/devices', json=payload, headers=POST_HEADER)
     assert response.status_code == 200, 'Add device fail! ' + response.text
+
+def clear_tenant():
+    response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    # {"tenants":[{"name":"t1","type":"Normal"}]}
+    # {"tenants":[]}
+
+    if response.json()['tenants']:
+        for t in response.json()['tenants']:
+            tmp_tenant = tenant(t['name'])
+            tmp_tenant.destroy()
+
+def clear_uplink_segment():
+    response = requests.get(URL+"topology/v1/uplink-segments", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if response.json()['uplinkSegments']:
+        for up_seg in response.json()['uplinkSegments']:
+            tmp_uplink_segment = uplink_segment(up_seg['segment_name'])
+            tmp_uplink_segment.destroy()
 
 def configure_spine(ip_address):
     command_list = [
@@ -105,12 +132,7 @@ def configure_leaf(ip_address, src_if_vlan_id, access_vlan_id):
 
     telnet_and_execute(ip_address, command_list)
 
-def clear_configuration(access_vlan_id):
-    clear_spine("192.168.40.147")
-    clear_leaf("192.168.40.149", access_vlan_id)
-    clear_leaf("192.168.40.150", access_vlan_id)
-
-def clear_spine(ip_address):
+def clear_spine_configuration(ip_address):
     command_list = [
         ("config", "(config)#"),
         ("vlan data", "(config-vlan)#"),
@@ -119,7 +141,7 @@ def clear_spine(ip_address):
 
     telnet_and_execute(ip_address, command_list)
 
-def clear_leaf(ip_address, access_vlan_id):
+def clear_leaf_configuration(ip_address, access_vlan_id):
     command_list = [
         ("config", "(config)#"),
         ("no vxlan source-interface vlan", "(config)#"),
@@ -128,7 +150,7 @@ def clear_leaf(ip_address, access_vlan_id):
         ("exit", "(config)#"),
     ]
 
-    telnet_and_execute(ip_address, command_list)
+    telnet_and_execute(ip_address, command_list, True)
 
 def telnet_and_execute(host_ip, cli_command_list, debug = False):
     tn = Telnet(host_ip)
@@ -179,14 +201,9 @@ class TenantsAddNewTest(base_tests.SimpleDataPlane):
 
     def runTest(self):
         setup_configuration()
-        utils.wait_for_system_stable()
 
-        tenant_name = 'testTenant' + str(int(time.time()))
-        # add a tenant
-        payload = '{"name": "' + tenant_name + '", "type": "System"}'
-        response = requests.post(
-            URL+"v1/tenants/v1", headers=POST_HEADER, data=payload)
-        assert(response.status_code == 200)
+        tenant_name = 't1'
+        t1 = tenant(tenant_name)
 
         # query tenants
         response = requests.get(URL + 'v1/tenants/v1', headers=GET_HEADER)
@@ -198,9 +215,7 @@ class TenantsAddNewTest(base_tests.SimpleDataPlane):
                 break
         assert(found)
 
-        # delete test tenant
-        response = requests.delete(URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
-        assert(response.status_code == 200)
+        t1.destroy()
 
         # query and check
         response = requests.get(URL + 'v1/tenants/v1', headers=GET_HEADER)
@@ -225,7 +240,6 @@ class SegmentTest(base_tests.SimpleDataPlane):
 
     def runTest(self):
         setup_configuration()
-        utils.wait_for_system_stable()
 
         tenant_name = 'testTenant' + str(int(time.time()))
         segment_name = 'testSegment'
@@ -292,7 +306,6 @@ class LargeScaleTest(base_tests.SimpleDataPlane):
 
     def runTest(self):
         setup_configuration()
-        utils.wait_for_system_stable()
 
         # case 1: 4K tenant each 1 segmant
         for i in range(4000):
@@ -360,45 +373,17 @@ class SegmentVlanTypeConnectionTest(base_tests.SimpleDataPlane):
 
     def runTest(self):
         setup_configuration()
-        utils.wait_for_system_stable()
 
-        tenant_name = 't1'
-        segment_name = 's1'
         vlan_id = 3000
         ports = sorted(config["port_map"].keys())
 
-        # add a tenant
-        payload = {
-            'name': tenant_name,
-            'type': 'Normal'
-        }
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
-        self.assertEqual(200, response.status_code, 'Add a tenant fail! '+ response.text)
-
-        # add a segment on testenant
-        payload = {
-            "name": segment_name,
-            "type": "vlan",
-            "ip_address": ['192.168.1.1'],
-            "value": vlan_id
-        }
-        response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add segment fail! '+ response.text)
-
-        # add segment member,
-        payload = {
-            "ports" : ["46/tag", "48/tag"],
-        }
-        response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(tenant_name, segment_name, test_config.leaf0['id']),
-            json=payload, headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add segment member fail '+ response.text)
-
-        payload = {
-            "ports" : ["46/tag"],
-        }
-        response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(tenant_name, segment_name, test_config.leaf1['id']),
-            json=payload, headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add segment member fail '+ response.text)
+        t1 = (
+            tenant('t1')
+            .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
+            .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
+            .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
+            .build()
+        )
 
         utils.wait_for_system_stable()
 
@@ -441,13 +426,122 @@ class SegmentVlanTypeConnectionTest(base_tests.SimpleDataPlane):
         self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
         verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
-        # delete segment
-        response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete segment fail '+ response.text)
+        t1.delete_segment('s1')
+        t1.destroy()
 
-        # delete tenant
-        response = requests.delete(URL+'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete tenant fail '+ response.text)
+class SegmentVlanTypeRecoveryTest(base_tests.SimpleDataPlane):
+    '''
+    Test segment vlan type recovery feature.
+    '''
+
+    def runTest(self):
+        setup_configuration()
+
+        vlan_id = 1000
+        ports = sorted(config["port_map"].keys())
+
+        t1 = (
+            tenant('t1')
+            .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
+            .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
+            .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
+            .build()
+        )
+
+        utils.wait_for_system_stable()
+
+        pkt_from_p0_to_p1 = simple_tcp_packet(
+            pktlen=100,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            eth_dst='90:e2:ba:24:78:12',
+            eth_src='00:00:00:11:22:33',
+            ip_src='192.168.1.100',
+            ip_dst='192.168.1.101'
+        )
+
+        pkt_from_p0_to_p2 = simple_tcp_packet(
+            pktlen=100,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            eth_dst='90:e2:ba:24:a2:70',
+            eth_src='00:00:00:11:22:33',
+            ip_src='192.168.1.100',
+            ip_dst='192.168.1.110'
+        )
+
+        pkt_from_p0_to_p3 = simple_tcp_packet(
+            pktlen=100,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            eth_dst='90:e2:ba:24:a2:72',
+            eth_src='00:00:00:11:22:33',
+            ip_src='192.168.1.100',
+            ip_dst='192.168.1.111'
+        )
+
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
+
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
+
+        # # disconnect between spine0 and leaf1
+        # port_50 = 50
+        # payload = {
+        #     'enabled': False,
+        # }
+        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine0['id'], port_50), headers=POST_HEADER, json=payload)
+        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+
+        # utils.wait_for_system_stable()
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        # verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        # verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        # verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
+
+        # # resume connection between spine0 and leaf1
+        # payload = {
+        #     'enabled': True,
+        # }
+        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine0['id'], port_50), headers=POST_HEADER, json=payload)
+        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+
+        # # disconnection between spine1 and leaf1
+        # port_50 = 50
+        # payload = {
+        #     'enabled': False,
+        # }
+        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine1['id'], port_50), headers=POST_HEADER, json=payload)
+        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+
+        # utils.wait_for_system_stable()
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        # verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        # verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+
+        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        # verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
+
+        # # resume connection between spine1 and leaf1
+        # payload = {
+        #     'enabled': True,
+        # }
+        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine1['id'], port_50), headers=POST_HEADER, json=payload)
+        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+
+        t1.destroy()
 
 class SegmentVxlanTypeConnectionTest(base_tests.SimpleDataPlane):
     """
@@ -455,152 +549,84 @@ class SegmentVxlanTypeConnectionTest(base_tests.SimpleDataPlane):
     """
 
     def runTest(self):
-        setup_configuration()
-        utils.wait_for_system_stable()
+        access_vlan_id_pairs_list = [(20, 20), (20, 30)]
+        for leaf0_access_vlan_id, leaf1_access_vlan_id in access_vlan_id_pairs_list:
+            setup_configuration()    
 
-        tenant_name = 't1'
-        segment_name = 's1'
-        uplink_segment_name = ['leaf0spine0', 'leaf1spine0']
-        vlan_id = [200, 100]
-        access_vlan_id = 20
-        vni = 1000
-        ports = sorted(config["port_map"].keys())
+            print 'leaf0_access_vlan_id ' + str(leaf0_access_vlan_id) 
+            print 'leaf1_access_vlan_id ' + str(leaf1_access_vlan_id) 
 
-        # add a tenant
-        payload = {
-            'name': tenant_name,
-            'type': 'Normal'
-        }
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
-        self.assertEqual(200, response.status_code, 'Add a tenant fail! '+ response.text)
+            uplink_segment_name = ['leaf0spine0', 'leaf1spine0']
+            access_vlan_id = 20
+            vni = 1000
+            ports = sorted(config["port_map"].keys())
 
-        # add a segment on testenant
-        payload = {
-            "name": segment_name,
-            "type": "vxlan",
-            "value": vni,
-            "ip_address": [""]
-        }
-        response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add segment fail! '+ response.text)
+            uplink_segment_leaf0spine0 = (
+                uplink_segment('leaf0spine0')
+                .device_id(test_config.leaf0['id'])
+                .vlan(200)
+                .ports(["49/tag"])
+                .gateway("192.168.200.2")
+                .gateway_mac(test_config.spine0['mac'])
+                .ip_address("192.168.200.1/24")
+                .build()
+            )
 
-        # add uplink segment
-        payload = [
-            {
-                "segment_name": uplink_segment_name[0],
-                "device_id": test_config.leaf0['id'],
-                "vlan": vlan_id[0],
-                "ports": [
-                    "49/tag"
-                ],
-                "gateway": "192.168.200.2",
-                "gateway_mac": test_config.spine0['mac'],
-                "ip_address": "192.168.200.1/24"
-            },
-            {
-                "segment_name": uplink_segment_name[1],
-                "device_id": test_config.leaf1['id'],
-                "vlan": vlan_id[1],
-                "ports": [
-                    "49/tag"
-                ],
-                "gateway": "192.168.100.2",
-                "gateway_mac": test_config.spine0['mac'],
-                "ip_address": "192.168.100.1/24"
-            }
-        ]
+            uplink_segment_leaf1spine0 = (
+                uplink_segment('leaf1spine0')
+                .device_id(test_config.leaf1['id'])
+                .vlan(100)
+                .ports(["49/tag"])
+                .gateway("192.168.100.2")
+                .gateway_mac(test_config.spine0['mac'])
+                .ip_address("192.168.100.1/24")
+                .build()
+            )
 
-        response = requests.post(URL+'topology/v1/uplink-segments', json=payload[0], headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add uplink segment fail! '+ response.text)
+            utils.wait_for_system_stable()
 
-        response = requests.post(URL+'topology/v1/uplink-segments', json=payload[1], headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add uplink segment fail! '+ response.text)
+            t1 = (
+                tenant('t1')
+                .segment('s1', 'vxlan', [""], vni)
+                .access_port('s1', 'leaf0access', test_config.leaf0['id'], 48, leaf0_access_vlan_id)
+                .access_port('s1', 'leaf1access', test_config.leaf1['id'], 48, leaf1_access_vlan_id)
+                .network_port('s1', 'leaf0network', ['192.168.100.1'], uplink_segment_name[0])
+                .network_port('s1', 'leaf1network', ['192.168.200.1'], uplink_segment_name[1])
+                .build()
+            )
 
-        utils.wait_for_system_stable()
+            utils.wait_for_system_stable()
+            utils.wait_for_system_stable()
 
-        # add access port and network port
-        payload = [
-            {
-                "access_port": [
-                    {
-                    "name": "leaf0access",
-                    "type": "normal",
-                    "switch": test_config.leaf0['id'],
-                    "port": 48,
-                    "vlan": access_vlan_id
-                    }
-                ],
-                "network_port": [
-                    {
-                    "name": "leaf0network",
-                    "ip_addresses": [
-                        "192.168.100.1"
-                    ],
-                    "uplink_segment": uplink_segment_name[0]
-                    }
-                ]
-            },
-            {
-                "access_port": [
-                    {
-                    "name": "leaf1access",
-                    "type": "normal",
-                    "switch": test_config.leaf1['id'],
-                    "port": 48,
-                    "vlan": access_vlan_id
-                    }
-                ],
-                "network_port": [
-                    {
-                    "name": "leaf1network",
-                    "ip_addresses": [
-                        "192.168.200.1"
-                    ],
-                    "uplink_segment": uplink_segment_name[1]
-                    }
-                ]
-            }
-        ]
+            configure_spine(test_config.spine0['mgmtIpAddress'])
+            configure_leaf(test_config.leaf0['mgmtIpAddress'], "200", str(leaf0_access_vlan_id))
+            configure_leaf(test_config.leaf1['mgmtIpAddress'], "100", str(leaf1_access_vlan_id))
 
-        response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(tenant_name, segment_name), json=payload[0], headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add access port and network port fail! '+ response.text)
+            utils.wait_for_system_stable()
 
-        response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(tenant_name, segment_name), json=payload[1], headers=POST_HEADER)
-        self.assertEqual(200, response.status_code, 'Add access port and network port fail! '+ response.text)
+            pkt_from_p1_to_p3 = simple_tcp_packet(
+                pktlen=100,
+                dl_vlan_enable=True,
+                vlan_vid=leaf0_access_vlan_id,
+                eth_dst='00:00:00:44:55:66',
+                eth_src='00:00:00:11:22:33',
+                ip_src='192.168.10.10',
+                ip_dst='192.168.10.20'
+            )
 
-        configure_spine(test_config.spine0['mgmtIpAddress'])
-        configure_leaf(test_config.leaf0['mgmtIpAddress'], "200", str(access_vlan_id))
-        configure_leaf(test_config.leaf1['mgmtIpAddress'], "100", str(access_vlan_id))
+            self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
+            verify_packet(self, str(pkt_from_p1_to_p3), ports[3])
 
-        utils.wait_for_system_stable()
-        utils.wait_for_system_stable()
+            # delete uplink segment
+            response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[0]), headers=GET_HEADER)
+            self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
 
-        pkt_from_p1_to_p3 = simple_tcp_packet(
-            pktlen=100,
-            dl_vlan_enable=True,
-            vlan_vid=access_vlan_id,
-            eth_dst='00:00:00:44:55:66',
-            eth_src='00:00:00:11:22:33',
-            ip_src='192.168.10.10',
-            ip_dst='192.168.10.20'
-        )
+            response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[1]), headers=GET_HEADER)
+            self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
 
-        self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
-        verify_packet(self, str(pkt_from_p1_to_p3), ports[3])
+            t1.delete_segment('s1')
+            t1.destroy()
 
-        # delete uplink segment
-        response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[0]), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
-
-        response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[1]), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
-
-        # delete segment
-        response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete segment fail '+ response.text)
-
-        # delete tenant
-        response = requests.delete(URL+'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
-        self.assertEqual(200, response.status_code, 'Delete tenant fail '+ response.text)
-
-        clear_configuration(str(access_vlan_id))
+            clear_spine_configuration("192.168.40.147")
+            clear_leaf_configuration("192.168.40.149", str(leaf0_access_vlan_id))
+            clear_leaf_configuration("192.168.40.150", str(leaf1_access_vlan_id))
