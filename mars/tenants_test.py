@@ -30,7 +30,7 @@ import config as test_config
 import requests
 import time
 import utils
-from utils import tenant,uplink_segment
+from utils import *
 from telnetlib import Telnet
 
 URL = test_config.API_BASE_URL
@@ -39,66 +39,15 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
-def setup_configuration():
-    for device in test_config.devices:
-        if config_exists(device) == False:
-            config_add(device)
+def reconnect_switch_port(ip_address, port):
+    command_list = [
+        ("config", "(config)#"),
+        ("int eth " + port, "(config-if)#"),
+        ("shutdown", "(config-if)#"),
+        ("no shutdown", "(config-if)#")
+    ]
 
-    clear_tenant()
-    clear_uplink_segment()
-
-    utils.wait_for_system_stable()
-
-def config_exists(device):
-    response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
-
-    if response.status_code == 404:
-        return False
-    elif response.status_code == 200:
-        return True
-
-def config_add(device):
-    payload = {
-        "id": device['id'],
-        "name": device['name'],
-        "type": device['type'],
-        "available": "true",
-        "mgmtIpAddress": device['mgmtIpAddress'],
-        "mgmtPort": 0,
-        "mac": device['mac'],
-        "mfr": "Nocsys",
-        "port": "80",
-        "protocol": "rest",
-        "rack_id": "1",
-        "leaf_group": {
-            "name": "",
-            "switch_port": ""
-        }
-    }
-
-    response = requests.post(URL+'v1/devices', json=payload, headers=POST_HEADER)
-    assert response.status_code == 200, 'Add device fail! ' + response.text
-
-def clear_tenant():
-    response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
-    assert(response.status_code == 200)
-
-    # {"tenants":[{"name":"t1","type":"Normal"}]}
-    # {"tenants":[]}
-
-    if response.json()['tenants']:
-        for t in response.json()['tenants']:
-            tmp_tenant = tenant(t['name'])
-            tmp_tenant.destroy()
-
-def clear_uplink_segment():
-    response = requests.get(URL+"topology/v1/uplink-segments", headers=GET_HEADER)
-    assert(response.status_code == 200)
-
-    if response.json()['uplinkSegments']:
-        for up_seg in response.json()['uplinkSegments']:
-            tmp_uplink_segment = uplink_segment(up_seg['segment_name'])
-            tmp_uplink_segment.destroy()
+    telnet_and_execute(ip_address, command_list)
 
 def configure_spine(ip_address):
     command_list = [
