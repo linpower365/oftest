@@ -48,4 +48,19 @@ leaf1 = {
     'mac': '8c:ea:1b:9b:a4:30',
 }
 
+host0 = {
+    'id': 'host0',
+    'mac': '00:00:01:00:00:01'
+}
+
+host1 = {
+    'id': 'host1',
+    'mac': '00:00:01:00:00:02'
+}
+
+host2 = {
+    'id': 'host2',
+    'mac': '00:00:01:00:00:03'
+}
+
 devices = [spine0, spine1, leaf0, leaf1]
