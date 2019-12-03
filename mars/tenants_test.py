@@ -31,7 +31,6 @@ import requests
 import time
 import utils
 from utils import *
-from telnetlib import Telnet
 
 URL = test_config.API_BASE_URL
 LOGIN = test_config.LOGIN
@@ -39,108 +38,26 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
-def reconnect_switch_port(ip_address, port):
-    command_list = [
-        ("config", "(config)#"),
-        ("int eth " + port, "(config-if)#"),
-        ("shutdown", "(config-if)#"),
-        ("no shutdown", "(config-if)#")
-    ]
+class Tenants(base_tests.SimpleDataPlane):
+    def setUp(self):
+        base_tests.SimpleDataPlane.setUp(self)
 
-    telnet_and_execute(ip_address, command_list)
+        setup_configuration()
 
-def configure_spine(ip_address):
-    command_list = [
-        ("config", "(config)#"),
-        ("vlan data", "(config-vlan)#"),
-        ("vlan 100,200", "(config-vlan)#"),
-        ("exit", "(config)#"),
-        ("int vl 100", "(config-if)#"),
-        ("ip add 192.168.100.2 255.255.255.0", "(config-if)#"),
-        ("int vl 200", "(config-if)#"),
-        ("ip add 192.168.200.2 255.255.255.0", "(config-if)#"),
-        ("exit", "(config)#"),
-        ("int eth 1/49", "(config-if)#"),
-        ("switchport allowed vlan add 200 tagged", "(config-if)#"),
-        ("int eth 1/50", "(config-if)#"),
-        ("switchport allowed vlan add 100 tagged", "(config-if)#")
-    ]
+    def tearDown(self):
+        base_tests.SimpleDataPlane.tearDown(self)
 
-    telnet_and_execute(ip_address, command_list)
-
-def configure_leaf(ip_address, src_if_vlan_id, access_vlan_id):
-    command_list = [
-        ("config", "(config)#"),
-        ("vxlan source-interface vlan " + src_if_vlan_id, "(config)#"),
-        ("vlan database", "(config-vlan)#"),
-        ("vlan " + access_vlan_id, "(config-vlan)#"),
-        ("exit", "(config)#"),
-        ("int eth 1/48", "(config-if)#"),
-        ("switchport allowed vlan add " + access_vlan_id + " untagged", "(config-if)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def clear_spine_configuration(ip_address):
-    command_list = [
-        ("config", "(config)#"),
-        ("vlan data", "(config-vlan)#"),
-        ("no vlan 100,200", "(config-vlan)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def clear_leaf_configuration(ip_address, access_vlan_id):
-    command_list = [
-        ("config", "(config)#"),
-        ("no vxlan source-interface vlan", "(config)#"),
-        ("vlan database", "(config-vlan)#"),
-        ("no vlan " + access_vlan_id, "(config-vlan)#"),
-        ("exit", "(config)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list, True)
-
-def telnet_and_execute(host_ip, cli_command_list, debug = False):
-    tn = Telnet(host_ip)
-
-    # login
-    expect(tn, "Username:")
-    send(tn, "admin")
-    expect(tn, "Password:")
-    send(tn, "admin")
-    expect(tn, "#")
-
-    if (debug):
-        print ('\r\n')
-        print ('telnet to : ' + host_ip)
-
-    for (send_word, expect_word) in cli_command_list:
-        if (debug):
-            print (send_word, expect_word)
-
-        send(tn, send_word)
-        expect(tn, expect_word)
-
-def send(tn, word):
-   tn.write(word.encode('ascii') + b"\r\n")
-
-def expect(tn, word):
-   tn.read_until(word.encode('utf-8'))
-
-class TenantsGetTest(base_tests.SimpleDataPlane):
+class TenantsGetTest(Tenants):
     """
     Test tenant GET method
         - /v1/tenants/v1
     """
 
     def runTest(self):
-        setup_configuration()
-
         response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
 
-class TenantsAddNewTest(base_tests.SimpleDataPlane):
+class TenantsAddNewTest(Tenants):
     """
     Test adding a new tenant and delete it
       - POST v1/tenants/v1
@@ -149,10 +66,11 @@ class TenantsAddNewTest(base_tests.SimpleDataPlane):
     """
 
     def runTest(self):
-        setup_configuration()
-
         tenant_name = 't1'
-        t1 = tenant(tenant_name)
+        t1 = (
+            tenant(tenant_name)
+            .build()
+        )
 
         # query tenants
         response = requests.get(URL + 'v1/tenants/v1', headers=GET_HEADER)
@@ -178,7 +96,7 @@ class TenantsAddNewTest(base_tests.SimpleDataPlane):
         assert(not_exist)
 
 
-class SegmentTest(base_tests.SimpleDataPlane):
+class SegmentTest(Tenants):
     """
     Test Tenant Segment RestAPI
     - POST v1/tenants/v1/<tenant_name>/segments
@@ -188,8 +106,6 @@ class SegmentTest(base_tests.SimpleDataPlane):
     """
 
     def runTest(self):
-        setup_configuration()
-
         tenant_name = 'testTenant' + str(int(time.time()))
         segment_name = 'testSegment'
 
@@ -247,15 +163,13 @@ class SegmentTest(base_tests.SimpleDataPlane):
         assert(response.status_code == 200)
 
 @disabled
-class LargeScaleTest(base_tests.SimpleDataPlane):
+class LargeScaleTest(Tenants):
     """
     - Test 4K tenant each 1 segment
     - Test 1 tenant and 4k segment
     """
 
     def runTest(self):
-        setup_configuration()
-
         # case 1: 4K tenant each 1 segmant
         for i in range(4000):
             # add tenant
@@ -315,14 +229,12 @@ class LargeScaleTest(base_tests.SimpleDataPlane):
         assert response.status_code == 200, 'Delete tenant FAIL!' + response.text
 
 
-class SegmentVlanTypeConnectionTest(base_tests.SimpleDataPlane):
+class SegmentVlanTypeConnectionTest(Tenants):
     """
     Test segment vlan type connection.
     """
 
     def runTest(self):
-        setup_configuration()
-
         vlan_id = 3000
         ports = sorted(config["port_map"].keys())
 
@@ -378,14 +290,13 @@ class SegmentVlanTypeConnectionTest(base_tests.SimpleDataPlane):
         t1.delete_segment('s1')
         t1.destroy()
 
-class SegmentVlanTypeRecoveryTest(base_tests.SimpleDataPlane):
+
+class SegmentVlanTypeRecoveryTest(Tenants):
     '''
     Test segment vlan type recovery feature.
     '''
 
     def runTest(self):
-        setup_configuration()
-
         vlan_id = 1000
         ports = sorted(config["port_map"].keys())
 
@@ -438,61 +349,47 @@ class SegmentVlanTypeRecoveryTest(base_tests.SimpleDataPlane):
         self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
         verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
-        # # disconnect between spine0 and leaf1
-        # port_50 = 50
-        # payload = {
-        #     'enabled': False,
-        # }
-        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine0['id'], port_50), headers=POST_HEADER, json=payload)
-        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+        # disconnect between spine0 and leaf1
+        spine0_port_50 = port(50, test_config.spine0['id'])
+        spine0_port_50.link_down()
 
-        # utils.wait_for_system_stable()
+        utils.wait_for_system_stable()
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-        # verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
-        # verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        # verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
-        # # resume connection between spine0 and leaf1
-        # payload = {
-        #     'enabled': True,
-        # }
-        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine0['id'], port_50), headers=POST_HEADER, json=payload)
-        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+        # resume connection between spine0 and leaf1
+        spine0_port_50.link_up()
 
-        # # disconnection between spine1 and leaf1
-        # port_50 = 50
-        # payload = {
-        #     'enabled': False,
-        # }
-        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine1['id'], port_50), headers=POST_HEADER, json=payload)
-        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+        # disconnection between spine1 and leaf1
+        spine1_port_50 = port(50, test_config.spine1['id'])
+        spine1_port_50.link_down()
 
-        # utils.wait_for_system_stable()
+        utils.wait_for_system_stable()
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-        # verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
-        # verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
 
-        # self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        # verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
-        # # resume connection between spine1 and leaf1
-        # payload = {
-        #     'enabled': True,
-        # }
-        # response = requests.post(URL+"v1/devices/{}/portstate/{}".format(test_config.spine1['id'], port_50), headers=POST_HEADER, json=payload)
-        # self.assertEqual(200, response.status_code, 'Change port state fail! '+ response.text)
+        # resume connection between spine1 and leaf1
+        spine1_port_50.link_up()
 
         t1.destroy()
 
-class SegmentVxlanTypeConnectionTest(base_tests.SimpleDataPlane):
+        wait_for_system_stable()
+
+class SegmentVxlanTypeConnectionTest(Tenants):
     """
     Test segment vxlan type connection.
     """
@@ -500,10 +397,7 @@ class SegmentVxlanTypeConnectionTest(base_tests.SimpleDataPlane):
     def runTest(self):
         access_vlan_id_pairs_list = [(20, 20), (20, 30)]
         for leaf0_access_vlan_id, leaf1_access_vlan_id in access_vlan_id_pairs_list:
-            setup_configuration()    
-
-            print 'leaf0_access_vlan_id ' + str(leaf0_access_vlan_id) 
-            print 'leaf1_access_vlan_id ' + str(leaf1_access_vlan_id) 
+            setup_configuration()
 
             uplink_segment_name = ['leaf0spine0', 'leaf1spine0']
             access_vlan_id = 20
@@ -566,12 +460,8 @@ class SegmentVxlanTypeConnectionTest(base_tests.SimpleDataPlane):
             self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
             verify_packet(self, str(pkt_from_p1_to_p3), ports[3])
 
-            # delete uplink segment
-            response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[0]), headers=GET_HEADER)
-            self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
-
-            response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(uplink_segment_name[1]), headers=GET_HEADER)
-            self.assertEqual(200, response.status_code, 'Delete uplink segment fail! '+ response.text)
+            uplink_segment_leaf0spine0.destroy()
+            uplink_segment_leaf1spine0.destroy()
 
             t1.delete_segment('s1')
             t1.destroy()

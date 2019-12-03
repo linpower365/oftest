@@ -22,6 +22,7 @@ spine0 = {
     'type': 'spine',
     'mgmtIpAddress': '192.168.40.147',
     'mac': '8c:ea:1b:8d:0e:88',
+    'nos': 'aos',
 }
 
 spine1 = {
@@ -30,6 +31,7 @@ spine1 = {
     'type': 'spine',
     'mgmtIpAddress': '192.168.40.148',
     'mac': '8c:ea:1b:8d:0e:d2',
+    'nos': 'aos',
 }
 
 leaf0 = {
@@ -38,6 +40,7 @@ leaf0 = {
     'type': 'leaf',
     'mgmtIpAddress': '192.168.40.149',
     'mac': '8c:ea:1b:8d:0e:3e',
+    'nos': 'aos',
 }
 
 leaf1 = {
@@ -46,6 +49,7 @@ leaf1 = {
     'type': 'leaf',
     'mgmtIpAddress': '192.168.40.150',
     'mac': '8c:ea:1b:9b:a4:30',
+    'nos': 'aos',
 }
 
 host0 = {
@@ -63,4 +67,11 @@ host2 = {
     'mac': '00:00:01:00:00:03'
 }
 
+host3 = {
+    'id': 'host3',
+    'mac': '00:00:01:00:00:04'
+}
+
 devices = [spine0, spine1, leaf0, leaf1]
+spines = [spine0, spine1]
+leaves = [leaf0, leaf1]
