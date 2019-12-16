@@ -5,16 +5,16 @@ Test Tenants RestAPI.
 
 Test environment
 
-    +--------+     +--------+    
+    +--------+     +--------+
     | spine0 |     | spine1 |
     +--------+     +--------+
    49 |  | 50      49 |  | 50
-      |  +------------+  |   
+      |  +------------+  |
    49 |  | 50      49 |  | 50
     +--------+     +--------+
     |  leaf0 |     |  leaf1 |
     +--------+     +--------+
-      |    |         |    | 
+      |    |         |    |
       p0   p1        p2   p3
 
 p0: port 46 of leaf0
@@ -68,7 +68,7 @@ class TenantsAddNewTest(Tenants):
     def runTest(self):
         tenant_name = 't1'
         t1 = (
-            tenant(tenant_name)
+            Tenant(tenant_name)
             .build()
         )
 
@@ -198,7 +198,7 @@ class LargeScaleTest(Tenants):
             # delete tenant
             response = requests.delete(URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
             assert(response.status_code == 200)
-        
+
         # case 2: 1 tenant with 4k segment
         tenant_name = 'test_tenant'
         payload = {
@@ -239,7 +239,7 @@ class SegmentVlanTypeConnectionTest(Tenants):
         ports = sorted(config["port_map"].keys())
 
         t1 = (
-            tenant('t1')
+            Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
             .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
             .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
@@ -301,7 +301,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         ports = sorted(config["port_map"].keys())
 
         t1 = (
-            tenant('t1')
+            Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
             .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
             .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
@@ -350,7 +350,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
         # disconnect between spine0 and leaf1
-        spine0_port_50 = port(50, test_config.spine0['id'])
+        spine0_port_50 = Port(50, test_config.spine0['id'])
         spine0_port_50.link_down()
 
         utils.wait_for_system_stable()
@@ -368,7 +368,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         spine0_port_50.link_up()
 
         # disconnection between spine1 and leaf1
-        spine1_port_50 = port(50, test_config.spine1['id'])
+        spine1_port_50 = Port(50, test_config.spine1['id'])
         spine1_port_50.link_down()
 
         utils.wait_for_system_stable()
@@ -405,7 +405,7 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             ports = sorted(config["port_map"].keys())
 
             uplink_segment_leaf0spine0 = (
-                uplink_segment('leaf0spine0')
+                UplinkSegment('leaf0spine0')
                 .device_id(test_config.leaf0['id'])
                 .vlan(200)
                 .ports(["49/tag"])
@@ -416,7 +416,7 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             )
 
             uplink_segment_leaf1spine0 = (
-                uplink_segment('leaf1spine0')
+                UplinkSegment('leaf1spine0')
                 .device_id(test_config.leaf1['id'])
                 .vlan(100)
                 .ports(["49/tag"])
@@ -429,7 +429,7 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             utils.wait_for_system_stable()
 
             t1 = (
-                tenant('t1')
+                Tenant('t1')
                 .segment('s1', 'vxlan', [""], vni)
                 .access_port('s1', 'leaf0access', test_config.leaf0['id'], 48, leaf0_access_vlan_id)
                 .access_port('s1', 'leaf1access', test_config.leaf1['id'], 48, leaf1_access_vlan_id)
@@ -439,7 +439,7 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             )
 
             utils.wait_for_system_stable()
-            utils.wait_for_system_stable()
+            # utils.wait_for_system_stable()
 
             configure_spine(test_config.spine0['mgmtIpAddress'])
             configure_leaf(test_config.leaf0['mgmtIpAddress'], "200", str(leaf0_access_vlan_id))
@@ -457,7 +457,15 @@ class SegmentVxlanTypeConnectionTest(Tenants):
                 ip_dst='192.168.10.20'
             )
 
-            self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
+            # TODO: check test procedure for vlan 30
+            if leaf1_access_vlan_id == 30:
+                for i in range(5):
+                    self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
+                    wait_for_system_process()
+                    print i
+            else:
+                self.dataplane.send(ports[1], str(pkt_from_p1_to_p3))
+
             verify_packet(self, str(pkt_from_p1_to_p3), ports[3])
 
             uplink_segment_leaf0spine0.destroy()
@@ -466,6 +474,9 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             t1.delete_segment('s1')
             t1.destroy()
 
-            clear_spine_configuration("192.168.40.147")
-            clear_leaf_configuration("192.168.40.149", str(leaf0_access_vlan_id))
-            clear_leaf_configuration("192.168.40.150", str(leaf1_access_vlan_id))
+            clear_spine_configuration(test_config.spine0['mgmtIpAddress'])
+            clear_leaf_configuration(test_config.leaf0['mgmtIpAddress'], str(leaf0_access_vlan_id))
+            clear_leaf_configuration(test_config.leaf1['mgmtIpAddress'], str(leaf1_access_vlan_id))
+
+            # clear queue packet
+            self.dataplane.flush()

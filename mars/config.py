@@ -27,7 +27,7 @@ spine0 = {
 
 spine1 = {
     'id': 'rest:192.168.40.148:80',
-    'name': 'spine1',  
+    'name': 'spine1',
     'type': 'spine',
     'mgmtIpAddress': '192.168.40.148',
     'mac': '8c:ea:1b:8d:0e:d2',
@@ -54,22 +54,38 @@ leaf1 = {
 
 host0 = {
     'id': 'host0',
-    'mac': '00:00:01:00:00:01'
+    'mac': '00:00:01:00:00:01',
+    'ip': ''
 }
 
 host1 = {
     'id': 'host1',
-    'mac': '00:00:01:00:00:02'
+    'mac': '00:00:01:00:00:02',
+    'ip': ''
 }
 
 host2 = {
     'id': 'host2',
-    'mac': '00:00:01:00:00:03'
+    'mac': '00:00:01:00:00:03',
+    'ip': ''
 }
 
 host3 = {
     'id': 'host3',
-    'mac': '00:00:01:00:00:04'
+    'mac': '00:00:01:00:00:04',
+    'ip': ''
+}
+
+external_router0 = {
+    'id': 'external_router0',
+    'mac': '00:00:02:00:00:01',
+    'ip': ''
+}
+
+external_router1 = {
+    'id': 'external_router1',
+    'mac': '00:00:02:00:00:02',
+    'ip': ''
 }
 
 devices = [spine0, spine1, leaf0, leaf1]

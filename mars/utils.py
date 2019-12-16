@@ -5,6 +5,7 @@ Provided common utils for testing
 import time
 import requests
 import config as test_config
+from oftest.testutils import *
 from telnetlib import Telnet
 
 URL = test_config.API_BASE_URL
@@ -117,6 +118,7 @@ def setup_configuration():
 
     clear_tenant()
     clear_uplink_segment()
+    clear_logical_router()
 
     wait_for_system_stable()
 
@@ -163,7 +165,7 @@ def clear_tenant():
 
     if response.json()['tenants']:
         for t in response.json()['tenants']:
-            tmp_tenant = tenant(t['name'])
+            tmp_tenant = Tenant(t['name'])
             tmp_tenant.destroy()
 
 def clear_uplink_segment():
@@ -172,8 +174,47 @@ def clear_uplink_segment():
 
     if response.json()['uplinkSegments']:
         for up_seg in response.json()['uplinkSegments']:
-            tmp_uplink_segment = uplink_segment(up_seg['segment_name'])
+            tmp_uplink_segment = UplinkSegment(up_seg['segment_name'])
             tmp_uplink_segment.destroy()
+
+def clear_logical_router():
+    response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if response.json()['routers']:
+        for lrouter in response.json()['routers']:
+            tmp_lrouter = LogicalRouter(lrouter['name'], lrouter['tenant'])
+            tmp_lrouter.destroy()
+            clear_policy_route(lrouter['tenant'], lrouter['name'])
+            clear_nexthop_group(lrouter['tenant'], lrouter['name'])
+            clear_static_route(lrouter['tenant'], lrouter['name'])
+
+def clear_policy_route(tenant, lrouter):
+    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/policy-route".format(tenant, lrouter), headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if response.json()['policies']:
+        for policy in response.json()['policies']:
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(tenant, lrouter, policy['name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy policy route fail '+ response.text
+
+def clear_nexthop_group(tenant, lrouter):
+    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group".format(tenant, lrouter), headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if response.json()['nextHops']:
+        for nexthop in response.json()['nextHops']:
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(tenant, lrouter, nexthop['nexthop_group_name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy nexthop group fail '+ response.text
+
+def clear_static_route(tenant, lrouter):
+    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/static-route".format(tenant, lrouter), headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if response.json()['routes']:
+        for static_route in response.json()['routes']:
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(tenant, lrouter, static_route['name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy static route fail '+ response.text
 
 def check_links():
     response = requests.get(URL+"v1/links", headers=GET_HEADER)
@@ -182,8 +223,8 @@ def check_links():
     # check the connection between spine and leaf
     for spine in test_config.spines:
         for leaf in test_config.leaves:
-            match = [ 
-                link for link in response.json()['links'] 
+            match = [
+                link for link in response.json()['links']
                 if link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']
             ]
             assert match, 'The connection is broken between '+ spine['id'] + ' and ' + leaf['id']
@@ -193,22 +234,84 @@ def check_license():
     assert(response.status_code == 200)
 
     if response.json()['maxSwitches'] == 3:
-        files = {'file': open('../licenseForNCTU.lic', 'rb')}
-        response = requests.post(URL+'v1/license/BinaryFile', files=files, headers=POST_HEADER)
+        # files = {'file': open('../licenseForNCTU.lic', 'rb')}
+        # response = requests.post(URL+'v1/license/BinaryFile', files=files, headers=POST_HEADER)
+        data = open('../licenseForNCTU.lic', 'rb').read()
+        response = requests.post(URL+'v1/license/BinaryFile', data=data, headers=POST_HEADER)
         assert response.status_code == 200, 'Add license fail! ' + response.text
 
-class tenant():
-    def __init__(self, name = None):
+class PacketGenerator():
+    def __init__(self, dataplane):
+        self.device_dataplane = dataplane
+        self.send_tcp_packet_dict = {}
+        self.send_arp_reply_to_dict = {}
+
+    def sender_device(self, sender_device):
+        self.sender_device = sender_device
+
+        return self
+
+    def target_device(self, target_device):
+        self.target_device = target_device
+
+        return self
+
+    def send_tcp_packet(self, port, port_vlan_id, will_be_trigger_device):
+        self.send_tcp_packet_dict['port'] = port
+        self.send_tcp_packet_dict['packet'] = simple_tcp_packet(
+            pktlen=68,
+            dl_vlan_enable=True,
+            vlan_vid=port_vlan_id,
+            eth_dst=will_be_trigger_device['mac'],
+            eth_src=self.sender_device['mac'],
+            ip_dst=self.target_device['ip'],
+            ip_src=self.sender_device['ip']
+        )
+
+        return self
+
+    def send_arp_reply_to(self, will_be_trigger_device, if_ip, port, port_vlan_id):
+        self.send_arp_reply_to_dict['port'] = port
+        self.send_arp_reply_to_dict['packet'] = simple_arp_packet(
+            eth_dst=will_be_trigger_device['mac'],
+            eth_src=self.target_device['mac'],
+            vlan_vid=port_vlan_id,
+            vlan_pcp=0,
+            arp_op=2,
+            ip_snd=self.target_device['ip'],
+            ip_tgt=if_ip,
+            hw_snd=self.target_device['mac'],
+            hw_tgt=will_be_trigger_device['mac'],
+        )
+
+        return self
+
+    def run(self):
+        self.device_dataplane.send(
+            self.send_tcp_packet_dict['port'],
+            str(self.send_tcp_packet_dict['packet'])
+        )
+        wait_for_system_process()
+        self.device_dataplane.send(
+            self.send_arp_reply_to_dict['port'],
+            str(self.send_arp_reply_to_dict['packet'])
+        )
+        wait_for_system_process()
+
+
+class Tenant():
+    def __init__(self, name, type = 'Normal'):
         self.name = name
         self.segments = []
+        self.type = type
 
     def segment(self, name = None, type = None, ip_address = None, vlan_id = None):
         self.segments.append({
-            'name': name, 
-            'type': type, 
-            'ip_address': ip_address, 
-            'vlan_id': vlan_id, 
-            'members_list': None, 
+            'name': name,
+            'type': type,
+            'ip_address': ip_address,
+            'vlan_id': vlan_id,
+            'members_list': None,
             'access_port_list': None,
             'network_port_list': None})
 
@@ -256,10 +359,10 @@ class tenant():
 
         return self
 
-    def build_tenant(self, type = 'Normal'):
+    def build_tenant(self):
         payload = {
             'name': self.name,
-            'type': type
+            'type': self.type
         }
         response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Add a tenant fail! '+ response.text
@@ -282,47 +385,50 @@ class tenant():
                 self.build_network_port(segment)
 
     def build_segment_member(self, segment):
-        for member in segment['members_list']:
-            payload = {
-                "ports" : member['ports'],
-            }
-            response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member['device_id']), 
-                json=payload, headers=POST_HEADER)
-            assert response.status_code == 200, 'Add segment member fail '+ response.text
+        if segment['members_list'] is not None:
+            for member in segment['members_list']:
+                payload = {
+                    "ports" : member['ports'],
+                }
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member['device_id']),
+                    json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add segment member fail '+ response.text
 
     def build_access_port(self, segment):
-        for access_port in segment['access_port_list']:
-            payload = {
-                "access_port": [
-                    {
-                    "name": access_port['name'],
-                    "type": "normal",
-                    "switch": access_port['switch'],
-                    "port": access_port['port'],
-                    "vlan": access_port['vlan']
-                    }
-                ],
-                "network_port": []
-            }           
+        if segment['access_port_list'] is not None:
+            for access_port in segment['access_port_list']:
+                payload = {
+                    "access_port": [
+                        {
+                        "name": access_port['name'],
+                        "type": "normal",
+                        "switch": access_port['switch'],
+                        "port": access_port['port'],
+                        "vlan": access_port['vlan']
+                        }
+                    ],
+                    "network_port": []
+                }
 
-            response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
-            assert response.status_code == 200, 'Add access port fail! '+ response.text
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add access port fail! '+ response.text
 
     def build_network_port(self, segment):
-        for network_port in segment['network_port_list']:
-            payload = {
-                "access_port": [],
-                "network_port": [
-                    {
-                    "name": network_port['name'],
-                    "ip_addresses": network_port['ip_addresses'],
-                    "uplink_segment": network_port['uplink_segment']
-                    }
-                ]
-            }
+        if segment['network_port_list'] is not None:
+            for network_port in segment['network_port_list']:
+                payload = {
+                    "access_port": [],
+                    "network_port": [
+                        {
+                        "name": network_port['name'],
+                        "ip_addresses": network_port['ip_addresses'],
+                        "uplink_segment": network_port['uplink_segment']
+                        }
+                    ]
+                }
 
-            response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
-            assert response.status_code == 200, 'Add network port fail! '+ response.text
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add network port fail! '+ response.text
 
     def delete_segment(self, name):
         response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(self.name, name), headers=GET_HEADER)
@@ -348,27 +454,26 @@ class tenant():
                     print '===================='
                     print ''
 
-class uplink_segment():
-    uplink_segment = {}
-
+class UplinkSegment():
     # def __init__(self, name, device_id, vlan, ports, gateway, gateway_mac, ip_address):
         # self.uplink_segments.append({
-        #     'name': name, 
-        #     'device_id': device_id, 
-        #     'vlan': vlan, 
-        #     'ports': ports, 
-        #     'gateway': gateway, 
+        #     'name': name,
+        #     'device_id': device_id,
+        #     'vlan': vlan,
+        #     'ports': ports,
+        #     'gateway': gateway,
         #     'gateway_mac': gateway_mac,
         #     'ip_address': ip_address
         # })
 
     def __init__(self, name):
+        self.uplink_segment = {}
         self.uplink_segment['name'] = name
 
     def device_id(self, device_id):
         self.uplink_segment['device_id'] = device_id
         return self
-    
+
     def vlan(self, vlan):
         self.uplink_segment['vlan'] = vlan
         return self
@@ -376,11 +481,11 @@ class uplink_segment():
     def ports(self, ports):
         self.uplink_segment['ports'] = ports
         return self
-    
+
     def gateway(self, gateway):
         self.uplink_segment['gateway'] = gateway
         return self
-    
+
     def gateway_mac(self, gateway_mac):
         self.uplink_segment['gateway_mac'] = gateway_mac
         return self
@@ -408,15 +513,15 @@ class uplink_segment():
 
         response = requests.post(URL+'topology/v1/uplink-segments', json=payload, headers=POST_HEADER)
         assert response.status_code == 200, 'Add uplink segment fail! '+ response.text
-    
+
     def destroy(self):
         response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(self.uplink_segment['name']), headers=GET_HEADER)
         assert response.status_code == 200, 'Destroy uplink segment fail '+ response.text
 
     def debug(self):
-        print uplink_segment
+        print UplinkSegment
 
-class port():
+class Port():
 
     def __init__(self, port_id, device_id):
         self.port_id = port_id
@@ -434,3 +539,187 @@ class port():
 
     def link_down(self):
         self.link_state(False)
+
+
+class PolicyRoute():
+
+    def __init__(self, name):
+        self._name = name
+        self._ingress_segments_list = []
+        self._ingress_ports_list = []
+        self._action = ''
+        self._sequence_no = ''
+        self._protocols_list = []
+        self._match_ip = ''
+        self._nexthop = ''
+
+    def ingress_segments(self, segments):
+        for segment in segments:
+            self._ingress_segments_list.append(segment)
+
+        return self
+
+    def ingress_ports(self, ports):
+        for port in ports:
+            self._ingress_ports_list.append(port)
+
+        return self
+
+    def action(self, action):
+        self._action = action
+
+        return self
+
+    def sequence_no(self, sequence_no):
+        self._sequence_no = sequence_no
+
+        return self
+
+    def protocols(self, protocols):
+        for protocol in protocols:
+            self._protocols_list.append(protocol)
+
+        return self
+
+    def match_ip(self, ip):
+        self._match_ip = ip
+
+        return self
+
+    def nexthop(self, ip):
+        self._nexthop = ip
+
+        return self
+
+    def debug(self):
+        print self._name
+        print self._ingress_segments_list
+        print self._ingress_ports_list
+        print self._action
+        print self._sequence_no
+        print self._protocols_list
+        print self._match_ip
+        print self._nexthop
+
+class LogicalRouter():
+
+    def __init__(self, name, tenant):
+        self.name = name
+        self.tenant = tenant
+        self.interfaces_list = []
+        self.nexthop_groups = []
+        self.static_routes = []
+        self.policy_routes = []
+
+    def interfaces(self, interfaces):
+        for interface in interfaces:
+            self.interfaces_list.append(interface)
+
+        return self
+
+    def policy_route(self, policy_route):
+        self.policy_routes.append(policy_route)
+
+        return self
+
+    def nexthop_group(self, name, ip_addresses):
+        self.nexthop_groups.append({'name': name, 'ip_addresses': ip_addresses})
+
+        return self
+
+    def static_route(self, name, dest, prefix_len, nexthop_group):
+        self.static_routes.append(
+            {
+                'name': name,
+                'dest': dest,
+                'prefix_len': prefix_len,
+                'nexthop_group': nexthop_group
+            }
+        )
+
+        return self
+
+    def destroy(self):
+        response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}'.format(self.tenant, self.name), headers=GET_HEADER)
+        assert response.status_code == 200, 'Destroy logical router fail '+ response.text
+
+        if self.policy_routes:
+            for policy_route in self.policy_routes:
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(self.tenant, self.name, policy_route._name), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy policy route fail '+ response.text
+
+        if self.nexthop_groups:
+            for nexthop_group in self.nexthop_groups:
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(self.tenant, self.name, nexthop_group['name']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy nexthop group fail '+ response.text
+
+        if self.static_routes:
+            for static_route in self.static_routes:
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(self.tenant, self.name, static_route['name']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy static route fail '+ response.text
+
+    def build(self):
+        self.build_lrouter()
+        self.build_policy_route()
+        self.build_nexthop_group()
+        self.build_static_route()
+
+        return self
+
+    def build_lrouter(self):
+        payload = {
+            "name": self.name,
+            "interfaces": self.interfaces_list,
+        }
+
+        response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.tenant), json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add logical router fail! '+ response.text
+
+    def build_policy_route(self):
+        if self.policy_routes:
+            for policy_route in self.policy_routes:
+                payload = {
+                    "name": policy_route._name,
+                    "ingress_segments": policy_route._ingress_segments_list,
+                    "ingress_ports": policy_route._ingress_ports_list,
+                    "action": policy_route._action,
+                    "sequence_no": policy_route._sequence_no,
+                    "protocols": policy_route._protocols_list,
+                    "match_ip": policy_route._match_ip,
+                    "nexthop": policy_route._nexthop
+                }
+
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add policy route fail! '+ response.text
+
+    def build_nexthop_group(self):
+        if self.nexthop_groups:
+            for nexthop_group in self.nexthop_groups:
+                payload = {
+                    "nexthop_group_name": nexthop_group['name'],
+                    "ip_addresses": nexthop_group['ip_addresses']
+                }
+
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add nexthop group fail! '+ response.text
+
+    def build_static_route(self):
+        if self.static_routes:
+            for static_route in self.static_routes:
+                payload = {
+                    "name": static_route['name'],
+                    "dest": static_route['dest'],
+                    "prefix_len": static_route['prefix_len'],
+                    "nexthop_group": static_route['nexthop_group']
+                }
+
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add static router fail! '+ response.text
+
+    def debug(self):
+        print 'router = ' + self.name
+        print 'tenant = ' + self.tenant
+        print 'interfacs = ' + str(self.interfaces)
+        print 'nexthop_groups = ' + str(self.nexthop_groups)
+        self.policy_routes[0].debug()
+
