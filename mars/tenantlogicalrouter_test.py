@@ -45,6 +45,7 @@ POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 class TenantLogicalRouter(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
+
         setup_configuration()
 
     def tearDown(self):
@@ -59,6 +60,7 @@ class TenantLogicalRouterGetTest(TenantLogicalRouter):
     def runTest(self):
         response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
+
 
 class TenantLogicalRouterAddNewTest(TenantLogicalRouter):
     """
@@ -744,9 +746,9 @@ class ExternalRouterTest(TenantLogicalRouter):
 
         reconnect_switch_port(test_config.leaf0['mgmtIpAddress'], '1/48')
 
-class PolicyRouteTest(TenantLogicalRouter):
+class PolicyRouteInSameLeafTest(TenantLogicalRouter):
     '''
-    Test logical router with policy router configuration
+    Test logical router with policy router configuration in same leaf
     '''
 
     def runTest(self):
@@ -782,15 +784,14 @@ class PolicyRouteTest(TenantLogicalRouter):
 
         pr1 = (
             PolicyRoute('pr1')
-            .ingress_segments(['s1', 's2'])
+            .ingress_segments(['s1'])
             .ingress_ports([
-                '{}/{}'.format(test_config.leaf0['id'], 46),
-                '{}/{}'.format(test_config.leaf0['id'], 48)
+                '{}/{}'.format(test_config.leaf0['id'], 46)
                 ])
             .action('permit')
             .sequence_no('1')
-            .protocols(['icmp', 'tcp'])
-            .match_ip('192.168.50.10/32')
+            .protocols(['tcp'])
+            .match_ip('10.10.10.10/32')
             .nexthop(test_config.external_router0['ip'])
         )
 
@@ -803,34 +804,134 @@ class PolicyRouteTest(TenantLogicalRouter):
 
         wait_for_system_process()
 
-        pkt_from_p0_to_p1 = simple_tcp_packet(
-            pktlen=68,
-            dl_vlan_enable=True,
-            vlan_vid=s1_vlan_id,
-            eth_dst=test_config.leaf0['mac'],
-            eth_src=test_config.host0['mac'],
-            ip_dst=test_config.host1['ip'],
-            ip_src=test_config.host0['ip']
-        )
+        for dst_ip in [test_config.host1['ip'], '10.10.10.20']:
+            pkt_from_p0_to_p1 = simple_tcp_packet(
+                pktlen=68,
+                dl_vlan_enable=True,
+                vlan_vid=s1_vlan_id,
+                eth_dst=test_config.leaf0['mac'],
+                eth_src=test_config.host0['mac'],
+                ip_dst=dst_ip,
+                ip_src=test_config.host0['ip']
+            )
 
-        # check connection between host0 and external_router0
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+            # check connection between host0 and external_router0
+            self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
 
-        pkt_expected = simple_tcp_packet(
-            pktlen=64,
-            eth_dst=test_config.external_router0['mac'],
-            eth_src=test_config.leaf0['mac'],
-            ip_dst=test_config.external_router0['ip'],
-            ip_src=test_config.host0['ip'],
-            ip_ttl=63
-        )
+            pkt_expected = simple_tcp_packet(
+                pktlen=64,
+                eth_dst=test_config.external_router0['mac'],
+                eth_src=test_config.leaf0['mac'],
+                ip_dst=dst_ip,
+                ip_src=test_config.host0['ip'],
+                ip_ttl=63
+            )
 
-        verify_packet(self, pkt_expected, ports[1])
+            if dst_ip == test_config.host1['ip']:
+                verify_packet(self, pkt_expected, ports[1])
+            else:
+                verify_no_packet(self, pkt_expected, ports[1])
+
+            self.dataplane.flush()
 
         lrouter.destroy()
         t1.destroy()
 
         reconnect_switch_port(test_config.leaf0['mgmtIpAddress'], '1/48')
+
+class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
+    '''
+    Test logical router with policy router configuration in different leaf
+    '''
+
+    def runTest(self):
+        s1_vlan_id = 50
+        s2_vlan_id = 60
+        s1_ip = '192.168.50.1'
+        s2_ip = '192.168.60.1'
+        ports = sorted(config["port_map"].keys())
+
+        t1 = (
+            Tenant('t1')
+            .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
+            .segment_member('s1', ['46/untag'], test_config.leaf0['id'])
+            .segment_member('s1', ['46/untag'], test_config.leaf1['id'])
+            .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
+            .build()
+        )
+
+        wait_for_system_stable()
+
+        test_config.host0['ip'] = '192.168.50.20'
+        test_config.host2['ip'] = '10.10.10.20'
+        test_config.external_router1['ip'] = '192.168.50.130'
+        test_config.external_router1['mac'] = '00:00:02:00:00:22'
+
+        generate_arp_entry = (
+            PacketGenerator(self.dataplane)
+            .sender_device(test_config.host0)
+            .target_device(test_config.external_router1)
+            .send_tcp_packet(ports[0], s1_vlan_id, test_config.leaf1)
+            .send_arp_reply_to(test_config.leaf1, s1_ip, ports[2], s1_vlan_id)
+            .run()
+        )
+
+        pr1 = (
+            PolicyRoute('pr1')
+            .ingress_segments(['s1'])
+            .ingress_ports([
+                '{}/{}'.format(test_config.leaf0['id'], 46)
+                ])
+            .action('permit')
+            .sequence_no('1')
+            .protocols(['udp'])
+            .match_ip('10.10.10.20/32')
+            .nexthop(test_config.external_router1['ip'])
+        )
+
+        lrouter = (
+            LogicalRouter('r1', 't1')
+            .interfaces(['s1', 's2'])
+            .policy_route(pr1)
+            .build()
+        )
+
+        wait_for_system_process()
+
+        for dst_ip in [test_config.host2['ip'], '10.10.10.50']:
+            pkt_from_p0_to_p2 = simple_udp_packet(
+                pktlen=68,
+                dl_vlan_enable=True,
+                vlan_vid=s1_vlan_id,
+                eth_dst=test_config.leaf1['mac'],
+                eth_src=test_config.host0['mac'],
+                ip_dst=dst_ip,
+                ip_src=test_config.host0['ip']
+            )
+
+            # check connection between host0 and external_router0
+            self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+
+            pkt_expected = simple_udp_packet(
+                pktlen=64,
+                eth_dst=test_config.external_router1['mac'],
+                eth_src=test_config.leaf1['mac'],
+                ip_dst=dst_ip,
+                ip_src=test_config.host0['ip'],
+                ip_ttl=63
+            )
+
+            if dst_ip == test_config.host2['ip']:
+                verify_packet(self, pkt_expected, ports[2])
+            else:
+                verify_no_packet(self, pkt_expected, ports[2])
+
+            self.dataplane.flush()
+
+        lrouter.destroy()
+        t1.destroy()
+
+        reconnect_switch_port(test_config.leaf1['mgmtIpAddress'], '1/46')
 
 class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
     """
@@ -1056,49 +1157,8 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
             self.dataplane.send(ports[0], str(pkt_from_p0))
             verify_packet(self, str(pkt_expected), verify_port)
 
-        # send arp reply to leaf1's p3
-        host3_arp_reply = simple_arp_packet(
-            eth_dst=test_config.leaf1['mac'],
-            eth_src=test_config.host3['mac'],
-            vlan_vid=s3_vlan_id,
-            vlan_pcp=0,
-            arp_op=2,
-            ip_snd='192.168.30.10',
-            ip_tgt='192.168.30.1',
-            hw_snd=test_config.host3['mac'],
-            hw_tgt=test_config.leaf1['mac'],
-        )
-
-        pkt_from_p0_to_p3 = simple_tcp_packet(
-            pktlen=68,
-            dl_vlan_enable=True,
-            vlan_vid=s1_vlan_id,
-            eth_dst=test_config.leaf1['mac'],
-            eth_src='00:00:00:11:22:33',
-            ip_dst='192.168.30.10',
-            ip_src='192.168.10.10'
-        )
-
-        # make leaf1 generate arp entry
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        utils.wait_for_system_process()
-        self.dataplane.send(ports[3], str(host3_arp_reply))
-
-        # test connection from p0 to p3
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-
-        pkt_rcv_from_p0_to_p3 = simple_packet(
-            '00 00 01 00 00 04 8c ea 1b 9b a4 30 08 00 45 00 '
-            '00 32 00 01 00 00 3f 06 d2 60 c0 a8 0a 0a c0 a8 '
-            '1e 0a 04 d2 00 50 00 00 00 00 00 00 00 00 50 02 '
-            '20 00 8b fc 00 00 44 44 44 44 44 44 44 44 44 44 '
-        )
-
-        verify_packet(self, str(pkt_rcv_from_p0_to_p3), ports[3])
-
         t1.destroy()
 
         reconnect_switch_port(test_config.leaf0['mgmtIpAddress'], '1/48')
         reconnect_switch_port(test_config.leaf1['mgmtIpAddress'], '1/46')
         reconnect_switch_port(test_config.leaf1['mgmtIpAddress'], '1/48')
-
