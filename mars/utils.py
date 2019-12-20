@@ -20,6 +20,9 @@ def wait_for_system_stable():
 def wait_for_system_process():
     time.sleep(1)
 
+def wait_for_seconds(sec):
+    time.sleep(sec)
+
 def reconnect_switch_port(ip_address, port):
     command_list = [
         ("config", "(config)#"),
@@ -119,8 +122,10 @@ def setup_configuration():
     clear_tenant()
     clear_uplink_segment()
     clear_logical_router()
+    clear_span()
+    enable_ports()
 
-    wait_for_system_stable()
+    wait_for_seconds(5)
 
     check_links()
 
@@ -143,7 +148,7 @@ def config_add(device):
         "mgmtPort": 0,
         "mac": device['mac'],
         "nos": device['nos'],
-        "mfr": "Nocsys",
+        "mfr": "",
         "port": "80",
         "protocol": "rest",
         "rack_id": "1",
@@ -215,6 +220,28 @@ def clear_static_route(tenant, lrouter):
         for static_route in response.json()['routes']:
             response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(tenant, lrouter, static_route['name']), headers=GET_HEADER)
             assert response.status_code == 200, 'Destroy static route fail '+ response.text
+
+def clear_span():
+    response = requests.get(URL+"monitor/v1", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if 'sessions' in response.json():
+        for session in response.json()['sessions']:
+            response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
+
+def enable_ports():
+    response = requests.get(URL+"v1/devices/ports", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    for port in response.json()['ports']:
+        if port['isEnabled'] == False:
+            payload = {
+                'enabled': True,
+            }
+            response = requests.post(URL+"v1/devices/{}/portstate/{}".format(port['element'], port['port']), headers=POST_HEADER, json=payload)
+            assert response.status_code == 200, 'Enable port fail! '+ response.text
+
 
 def check_links():
     response = requests.get(URL+"v1/links", headers=GET_HEADER)
@@ -723,3 +750,55 @@ class LogicalRouter():
         print 'nexthop_groups = ' + str(self.nexthop_groups)
         self.policy_routes[0].debug()
 
+class SPAN():
+    def __init__(self, session):
+        self._session = session
+        self._source = {}
+        self._target = {}
+
+    def source(self, device_id, port, direction):
+        self._source['device_id'] = device_id
+        self._source['port'] = port
+        self._source['direction'] = direction
+
+        return self
+
+    def target(self, device_id, port):
+        self._target['device_id'] = device_id
+        self._target['port'] = port
+
+        return self
+
+    def get_session(self, session_id):
+        response = requests.get(URL+'monitor/v1/{}'.format(session_id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get SPAN session fail! '+ response.text
+
+        return response.json()
+
+    def build(self):
+        payload = {
+            "src": {
+                "device_id": self._source['device_id'],
+                "port": self._source['port'],
+                "direction": self._source['direction']
+            },
+            "target": {
+                "device_id": self._target['device_id'],
+                "port": self._target['port']
+            },
+            "session": self._session
+        }
+
+        response = requests.post(URL+'monitor/v1', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add SPAN fail! '+ response.text
+
+        return self
+
+    def destroy(self):
+        response = requests.get(URL+"monitor/v1", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        if 'sessions' in response.json():
+            for session in response.json()['sessions']:
+                response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text

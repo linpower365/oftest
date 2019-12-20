@@ -4,7 +4,8 @@ Config file for some constant value
 
 import base64
 from oftest import config
-
+import ConfigParser
+import socket
 
 API_BASE_URL = "http://" + config['controller_host'] + ":8181/mars/"
 
@@ -15,41 +16,55 @@ ADMIN_PASSWORD = 'karaf'
 # admin login
 LOGIN = base64.b64encode(bytes('{}:{}'.format(ADMIN_USERNAME, ADMIN_PASSWORD)))
 
+# Read ini file
+INI_FILE = "auto-test.ini"
+
+if socket.gethostname() == 'AutoTestMars':
+    INI_FILE = "auto-test.ini"
+elif socket.gethostname() == 'Mars-charles':
+    INI_FILE = "mars-charles.ini"
+
+print 'Test Host: ' + socket.gethostname()
+print 'Test INI : ' + INI_FILE
+
+conf = ConfigParser.ConfigParser()
+conf.read('./mars/ini/' + INI_FILE)
+
 # devices under test
 spine0 = {
-    'id': 'rest:192.168.40.147:80',
-    'name': 'spine0',
-    'type': 'spine',
-    'mgmtIpAddress': '192.168.40.147',
-    'mac': '8c:ea:1b:8d:0e:88',
-    'nos': 'aos',
+    'id': conf.get('spine0', 'id'),
+    'name': conf.get('spine0', 'name'),
+    'type': conf.get('spine0', 'type'),
+    'mgmtIpAddress': conf.get('spine0', 'mgmtIpAddress'),
+    'mac': conf.get('spine0', 'mac'),
+    'nos': conf.get('spine0', 'nos'),
 }
 
 spine1 = {
-    'id': 'rest:192.168.40.148:80',
-    'name': 'spine1',
-    'type': 'spine',
-    'mgmtIpAddress': '192.168.40.148',
-    'mac': '8c:ea:1b:8d:0e:d2',
-    'nos': 'aos',
+    'id': conf.get('spine1', 'id'),
+    'name': conf.get('spine1', 'name'),
+    'type': conf.get('spine1', 'type'),
+    'mgmtIpAddress': conf.get('spine1', 'mgmtIpAddress'),
+    'mac': conf.get('spine1', 'mac'),
+    'nos': conf.get('spine1', 'nos'),
 }
 
 leaf0 = {
-    'id': 'rest:192.168.40.149:80',
-    'name': 'leaf0',
-    'type': 'leaf',
-    'mgmtIpAddress': '192.168.40.149',
-    'mac': '8c:ea:1b:8d:0e:3e',
-    'nos': 'aos',
+    'id': conf.get('leaf0', 'id'),
+    'name': conf.get('leaf0', 'name'),
+    'type': conf.get('leaf0', 'type'),
+    'mgmtIpAddress': conf.get('leaf0', 'mgmtIpAddress'),
+    'mac': conf.get('leaf0', 'mac'),
+    'nos': conf.get('leaf0', 'nos'),
 }
 
 leaf1 = {
-    'id': 'rest:192.168.40.150:80',
-    'name': 'leaf1',
-    'type': 'leaf',
-    'mgmtIpAddress': '192.168.40.150',
-    'mac': '8c:ea:1b:9b:a4:30',
-    'nos': 'aos',
+    'id': conf.get('leaf1', 'id'),
+    'name': conf.get('leaf1', 'name'),
+    'type': conf.get('leaf1', 'type'),
+    'mgmtIpAddress': conf.get('leaf1', 'mgmtIpAddress'),
+    'mac': conf.get('leaf1', 'mac'),
+    'nos': conf.get('leaf1', 'nos'),
 }
 
 host0 = {
