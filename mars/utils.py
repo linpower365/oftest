@@ -65,6 +65,26 @@ def configure_leaf(ip_address, src_if_vlan_id, access_vlan_id):
 
     telnet_and_execute(ip_address, command_list)
 
+def configure_arp(ip_address, target, port, vlan):
+    command_list = [
+        ("config", "(config)#"),
+        ("mac-address-table static " + target['mac'].replace(':', '-') + " interface ethernet " + port + " vlan " + str(vlan), "(config)#"),
+        ("arp " + target['ip'] + " " + target['mac'].replace(':', '-'), "(config)#"),
+        ("exit", "#"),
+    ]
+
+    telnet_and_execute(ip_address, command_list)
+
+def remove_arp(ip_address, target, vlan):
+    command_list = [
+        ("config", "(config)#"),
+        ("no mac-address-table static " + target['mac'].replace(':', '-') + " vlan " + str(vlan), "(config)#"),
+        ("no arp " + target['ip'], "(config)#"),
+        ("exit", "#"),
+    ]
+
+    telnet_and_execute(ip_address, command_list)
+
 def clear_spine_configuration(ip_address):
     command_list = [
         ("config", "(config)#"),
@@ -302,8 +322,6 @@ class PacketGenerator():
         self.send_arp_reply_to_dict['packet'] = simple_arp_packet(
             eth_dst=will_be_trigger_device['mac'],
             eth_src=self.target_device['mac'],
-            vlan_vid=port_vlan_id,
-            vlan_pcp=0,
             arp_op=2,
             ip_snd=self.target_device['ip'],
             ip_tgt=if_ip,
@@ -630,10 +648,11 @@ class PolicyRoute():
 
 class LogicalRouter():
 
-    def __init__(self, name, tenant):
+    def __init__(self, name, tenant=None):
         self.name = name
         self.tenant = tenant
         self.interfaces_list = []
+        self.tenant_routers_list = []
         self.nexthop_groups = []
         self.static_routes = []
         self.policy_routes = []
@@ -641,6 +660,12 @@ class LogicalRouter():
     def interfaces(self, interfaces):
         for interface in interfaces:
             self.interfaces_list.append(interface)
+
+        return self
+
+    def tenant_routers(self, tenant_routers):
+        for tenant_router in tenant_routers:
+            self.tenant_routers_list.append(tenant_router)
 
         return self
 
@@ -694,13 +719,22 @@ class LogicalRouter():
         return self
 
     def build_lrouter(self):
-        payload = {
+        payload = {}
+        payload['normal'] = {
             "name": self.name,
             "interfaces": self.interfaces_list,
         }
+        payload['system'] = {
+            "name": self.name,
+            "tenant_routers": self.tenant_routers_list,
+        }
 
-        response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.tenant), json=payload, headers=POST_HEADER)
-        assert response.status_code == 200, 'Add logical router fail! '+ response.text
+        if self.name == 'system':
+            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.name), json=payload['system'], headers=POST_HEADER)
+            assert response.status_code == 200, 'Add logical router fail! '+ response.text
+        else:
+            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.tenant), json=payload['normal'], headers=POST_HEADER)
+            assert response.status_code == 200, 'Add logical router fail! '+ response.text
 
     def build_policy_route(self):
         if self.policy_routes:
