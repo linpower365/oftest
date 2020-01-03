@@ -103,6 +103,12 @@ external_router1 = {
     'ip': ''
 }
 
+dhcp_server = {
+    'id': 'dhcp_server',
+    'mac': '00:00:03:00:00:11',
+    'ip': ''
+}
+
 devices = [spine0, spine1, leaf0, leaf1]
 spines = [spine0, spine1]
 leaves = [leaf0, leaf1]

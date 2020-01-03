@@ -143,6 +143,7 @@ def setup_configuration():
     clear_uplink_segment()
     clear_logical_router()
     clear_span()
+    clear_dhcp_relay()
     enable_ports()
 
     wait_for_seconds(5)
@@ -249,6 +250,19 @@ def clear_span():
         for session in response.json()['sessions']:
             response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
             assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
+
+def clear_dhcp_relay():
+    response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
+    assert response.status_code == 200, 'Get DHCP relay fail! '+ response.text
+
+    if 'dhcpRelayServers' in response.json():
+        for dhcpRelayServer in response.json()['dhcpRelayServers']:
+            for server in dhcpRelayServer['servers']:
+                response = requests.delete(
+                    URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
+                    headers=GET_HEADER
+                )
+                assert response.status_code == 200, 'Destroy DHCP relay server fail '+ response.text
 
 def enable_ports():
     response = requests.get(URL+"v1/devices/ports", headers=GET_HEADER)
@@ -836,3 +850,48 @@ class SPAN():
             for session in response.json()['sessions']:
                 response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
                 assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
+
+class DHCPRelay():
+    def __init__(self, tenant, segment):
+        self._tenant = tenant
+        self._segment = segment
+        self._servers_list = []
+
+    def servers(self, servers):
+        for server in servers:
+            self._servers_list.append(server)
+
+        return self
+
+    def get_content(self):
+        response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
+        assert response.status_code == 200, 'Get DHCP relay fail! '+ response.text
+
+        return response.json()
+
+    def build(self):
+        payload = {
+            "tenant": self._tenant,
+            "segment": self._segment,
+            "servers": self._servers_list
+        }
+
+        response = requests.post(URL+'dhcprelay/v1/logical', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add DHCP relay fail! '+ response.text
+
+        return self
+
+    def destroy(self):
+        response = requests.get(URL+"dhcprelay/v1/logical", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        if 'dhcpRelayServers' in response.json():
+            for dhcpRelayServer in response.json()['dhcpRelayServers']:
+                for server in dhcpRelayServer['servers']:
+                    response = requests.delete(
+                        URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
+                        headers=GET_HEADER
+                    )
+                    assert response.status_code == 200, 'Destroy DHCP relay server fail '+ response.text
+
+
