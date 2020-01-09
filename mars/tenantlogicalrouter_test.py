@@ -203,7 +203,7 @@ class OneSegmentWithoutIPaddressInSameLeaf(TenantLogicalRouter):
 
         t1 = (
             Tenant('t1')
-            .segment('s1', 'vlan', [''], s1_vlan_id)
+            .segment('s1', 'vlan', [], s1_vlan_id)
             .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
             .build()
         )
@@ -227,7 +227,7 @@ class OneSegmentWithoutIPaddressInDifferentLeaf(TenantLogicalRouter):
 
         t1 = (
             Tenant('t1')
-            .segment('s1', 'vlan', [''], s1_vlan_id)
+            .segment('s1', 'vlan', [], s1_vlan_id)
             .segment_member('s1', ['46/tag'], test_config.leaf0['id'])
             .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
             .build()
@@ -252,7 +252,7 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
         ports = sorted(config["port_map"].keys())
         segment_ip_list = [
             (['192.168.10.1'], ['192.168.20.1']),
-            ([''], [''])
+            ([], [])
         ]
 
         for (s1_ip, s2_ip) in segment_ip_list:
@@ -265,7 +265,7 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
                 .build()
             )
 
-            if s1_ip != [''] and s2_ip != ['']:
+            if s1_ip != [] and s2_ip != []:
                 lrouter = (
                     LogicalRouter('r1', 't1')
                     .interfaces(['s1', 's2'])
@@ -299,13 +299,13 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
                 ip_ttl=63
             )
 
-            if s1_ip == [''] and s2_ip == ['']:
+            if s1_ip == [] and s2_ip == []:
                 verify_no_packet(self, str(pkt_expected), ports[1])
             else:
                 verify_packet(self, str(pkt_expected), ports[1])
+                lrouter.destroy()
 
             t1.destroy()
-            lrouter.destroy()
 
             remove_arp(test_config.spine0['mgmtIpAddress'], test_config.host1, s1_vlan_id)
 
@@ -323,7 +323,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
         ports = sorted(config["port_map"].keys())
         segment_ip_list = [
             (['192.168.10.1'], ['192.168.20.1']),
-            ([''], [''])
+            ([], [])
         ]
 
         for (s1_ip, s2_ip) in segment_ip_list:
@@ -336,7 +336,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
                 .build()
             )
 
-            if s1_ip != [''] and s2_ip != ['']:
+            if s1_ip != [] and s2_ip != []:
                 lrouter = (
                     LogicalRouter('r1', 't1')
                     .interfaces(['s1', 's2'])
@@ -370,13 +370,13 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
                 ip_ttl=63
             )
 
-            if s1_ip == [''] and s2_ip == ['']:
+            if s1_ip == [] and s2_ip == []:
                 verify_no_packet(self, str(pkt_expected), ports[2])
             else:
                 verify_packet(self, str(pkt_expected), ports[2])
+                lrouter.destroy()
 
             t1.destroy()
-            lrouter.destroy()
 
             remove_arp(test_config.spine0['mgmtIpAddress'], test_config.host2, s2_vlan_id)
 

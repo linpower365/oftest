@@ -430,7 +430,7 @@ class SegmentVxlanTypeConnectionTest(Tenants):
 
             t1 = (
                 Tenant('t1')
-                .segment('s1', 'vxlan', [""], vni)
+                .segment('s1', 'vxlan', [], vni)
                 .access_port('s1', 'leaf0access', test_config.leaf0['id'], 48, leaf0_access_vlan_id)
                 .access_port('s1', 'leaf1access', test_config.leaf1['id'], 48, leaf1_access_vlan_id)
                 .network_port('s1', 'leaf0network', ['192.168.100.1'], uplink_segment_name[0])

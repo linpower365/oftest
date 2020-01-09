@@ -162,7 +162,7 @@ class SameLeafUplinkDirectionTest(SPANTest):
 
         t1 = (
             Tenant('t1')
-            .segment('s1', 'vlan', [''], s1_vlan_id)
+            .segment('s1', 'vlan', [], s1_vlan_id)
             .segment_member('s1', ['48/untag'], cfg.leaf0['id'])
             .segment_member('s1', ['48/untag'], cfg.leaf1['id'])
             .build()
@@ -279,7 +279,7 @@ class DifferentLeafUplinkDirectionTest(SPANTest):
 
         t1 = (
             Tenant('t1')
-            .segment('s1', 'vlan', [''], s1_vlan_id)
+            .segment('s1', 'vlan', [], s1_vlan_id)
             .segment_member('s1', ['46/untag', '48/untag'], cfg.leaf1['id'])
             .build()
         )

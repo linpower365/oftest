@@ -58,9 +58,6 @@ def configure_leaf(ip_address, src_if_vlan_id, access_vlan_id):
         ("vxlan source-interface vlan " + src_if_vlan_id, "(config)#"),
         ("vlan database", "(config-vlan)#"),
         ("vlan " + access_vlan_id, "(config-vlan)#"),
-        ("exit", "(config)#"),
-        ("int eth 1/48", "(config-if)#"),
-        ("switchport allowed vlan add " + access_vlan_id + " untagged", "(config-if)#"),
     ]
 
     telnet_and_execute(ip_address, command_list)
@@ -294,7 +291,7 @@ def check_license():
     response = requests.get(URL+"v1/license/v1", headers=GET_HEADER)
     assert(response.status_code == 200)
 
-    if response.json()['maxSwitches'] == 3:
+    if response.json()['maxSwitches'] == 8:
         # files = {'file': open('../licenseForNCTU.lic', 'rb')}
         # response = requests.post(URL+'v1/license/BinaryFile', files=files, headers=POST_HEADER)
         data = open('../licenseForNCTU.lic', 'rb').read()
@@ -428,12 +425,19 @@ class Tenant():
 
     def build_segment(self):
         for segment in self.segments:
-            payload = {
-                "name": segment['name'],
-                "type": segment['type'],
-                "ip_address": segment['ip_address'],
-                "value": segment['vlan_id']
-            }
+            if segment['ip_address'] == []:
+                payload = {
+                    "name": segment['name'],
+                    "type": segment['type'],
+                    "value": segment['vlan_id']
+                }
+            else:
+                payload = {
+                    "name": segment['name'],
+                    "type": segment['type'],
+                    "ip_address": segment['ip_address'],
+                    "value": segment['vlan_id']
+                }
             response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(self.name), json=payload, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment fail! ' + response.text
 
