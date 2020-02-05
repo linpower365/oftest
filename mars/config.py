@@ -38,6 +38,9 @@ spine0 = {
     'mgmtIpAddress': conf.get('spine0', 'mgmtIpAddress'),
     'mac': conf.get('spine0', 'mac'),
     'nos': conf.get('spine0', 'nos'),
+    'mfr': conf.get('spine0', 'mfr'),
+    'port': conf.get('spine0', 'port'),
+    'protocol': conf.get('spine0', 'protocol'),
 }
 
 spine1 = {
@@ -47,6 +50,9 @@ spine1 = {
     'mgmtIpAddress': conf.get('spine1', 'mgmtIpAddress'),
     'mac': conf.get('spine1', 'mac'),
     'nos': conf.get('spine1', 'nos'),
+    'mfr': conf.get('spine1', 'mfr'),
+    'port': conf.get('spine1', 'port'),
+    'protocol': conf.get('spine1', 'protocol'),
 }
 
 leaf0 = {
@@ -56,6 +62,9 @@ leaf0 = {
     'mgmtIpAddress': conf.get('leaf0', 'mgmtIpAddress'),
     'mac': conf.get('leaf0', 'mac'),
     'nos': conf.get('leaf0', 'nos'),
+    'mfr': conf.get('leaf0', 'mfr'),
+    'port': conf.get('leaf0', 'port'),
+    'protocol': conf.get('leaf0', 'protocol'),
 }
 
 leaf1 = {
@@ -65,6 +74,9 @@ leaf1 = {
     'mgmtIpAddress': conf.get('leaf1', 'mgmtIpAddress'),
     'mac': conf.get('leaf1', 'mac'),
     'nos': conf.get('leaf1', 'nos'),
+    'mfr': conf.get('leaf1', 'mfr'),
+    'port': conf.get('leaf1', 'port'),
+    'protocol': conf.get('leaf1', 'protocol'),
 }
 
 host0 = {

@@ -156,25 +156,43 @@ def config_exists(device):
         return True
 
 def config_add(device):
-    payload = {
-        "id": device['id'],
-        "name": device['name'],
-        "type": device['type'],
-        "available": "true",
-        "defaultCfg": "true",
-        "mgmtIpAddress": device['mgmtIpAddress'],
-        "mgmtPort": 0,
-        "mac": device['mac'],
-        "nos": device['nos'],
-        "mfr": "",
-        "port": "80",
-        "protocol": "rest",
-        "rack_id": "1",
-        "leaf_group": {
-            "name": "",
-            "switch_port": ""
+    if device['type'] == 'leaf':
+        payload = {
+            "id": device['id'],
+            "name": device['name'],
+            "type": device['type'],
+            "available": "true",
+            "defaultCfg": "true",
+            "mgmtIpAddress": device['mgmtIpAddress'],
+            "mgmtPort": 0,
+            "mac": device['mac'],
+            "nos": device['nos'],
+            "mfr": device['mfr'],
+            "port": device['port'],
+            "protocol": device['protocol'],
+            "rack_id": "1",
+            "leaf_group": {
+                "name": "",
+                "switch_port": ""
+            }
         }
-    }
+    elif device['type'] == 'spine':
+        payload = {
+            "id": device['id'],
+            "name": device['name'],
+            "type": device['type'],
+            "available": "true",
+            "defaultCfg": "true",
+            "mgmtIpAddress": device['mgmtIpAddress'],
+            "mgmtPort": 0,
+            "mac": device['mac'],
+            "nos": device['nos'],
+            "mfr": device['mfr'],
+            "port": device['port'],
+            "protocol": device['protocol'],
+            "rack_id": "1"
+        }
+
 
     response = requests.post(URL+'v1/devices', json=payload, headers=POST_HEADER)
     assert response.status_code == 200, 'Add device fail! ' + response.text

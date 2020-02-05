@@ -75,6 +75,8 @@ class SetAndGetTest(SPANTest):
         assert(span._target['device_id'] == actual_session['target']['device_id'])
         assert(span._target['port'] == actual_session['target']['port'])
 
+        span.destroy()
+
 class NoSPANConfigTest(SPANTest):
     """
     Test situation without SAPN config
