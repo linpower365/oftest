@@ -602,7 +602,7 @@ class UplinkSegment():
     def debug(self):
         print UplinkSegment
 
-class Port():
+class DevicePort():
 
     def __init__(self, port_id, device_id):
         self.port_id = port_id
@@ -621,6 +621,38 @@ class Port():
     def link_down(self):
         self.link_state(False)
 
+class Port():
+
+    def __init__(self, port_id):
+        self._name = ''
+        self._port_id = port_id
+        self._tagged = False
+        self._nos = 'aos'
+
+    def tagged(self, value):
+        self._tagged = value
+
+        return self
+
+    def nos(self, nos):
+        self._nos = nos
+
+        return self
+
+    @property
+    def name(self):
+        if self._tagged == True:
+            tagged_str = 'tag'
+        else:
+            tagged_str = 'untag'
+
+        if self._nos == 'aos':
+            return "{}/{}".format(self._port_id, tagged_str)
+        elif self._nos == 'sonic':
+            port_str = str(self._port_id - 1)
+            return "{}/{}".format(port_str, tagged_str)
+        else:
+            return "{}/{}".format(self._port_id, tagged_str)
 
 class PolicyRoute():
 

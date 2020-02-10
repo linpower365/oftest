@@ -50,9 +50,32 @@ class DHCPRelayTest(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
+        self.port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
+    def port_configuration(self):
+        cfg.leaf0['port46']  = (
+            Port(cfg.leaf0['front_port'][0])
+            .tagged(False)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf0['port48'] = (
+            Port(cfg.leaf0['front_port'][1])
+            .tagged(False)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf1['port46'] = (
+            Port(cfg.leaf1['front_port'][0])
+            .tagged(False)
+            .nos(cfg.leaf1['nos'])
+        )
+        cfg.leaf1['port48'] = (
+            Port(cfg.leaf1['front_port'][1])
+            .tagged(False)
+            .nos(cfg.leaf1['nos'])
+        )
 
     def generate_discover_pkt(self, client):
         dhcp_discover = (
@@ -191,9 +214,9 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             t1 = (
                 Tenant('t1')
                 .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-                .segment_member('s1', ['46/untag'], cfg.leaf0['id'])
+                .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
                 .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-                .segment_member('s2', ['46/untag', '48/untag'], cfg.leaf1['id'])
+                .segment_member('s2', [cfg.leaf1['port46'].name, cfg.leaf1['port48'].name], cfg.leaf1['id'])
                 .build()
             )
 
@@ -294,9 +317,9 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', ['46/untag'], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', ['46/untag', '48/untag'], cfg.leaf1['id'])
+            .segment_member('s2', [cfg.leaf1['port46'].name, cfg.leaf1['port48'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -397,18 +420,18 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', ['46/untag'], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', ['48/untag'], cfg.leaf0['id'])
+            .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s3', 'vlan', [s3_vlan_ip], s3_vlan_id)
-            .segment_member('s3', ['46/untag'], cfg.leaf1['id'])
+            .segment_member('s3', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
             .segment('s4', 'vlan', [s4_vlan_ip], s4_vlan_id)
-            .segment_member('s4', ['48/untag'], cfg.leaf1['id'])
+            .segment_member('s4', [cfg.leaf1['port48'].name], cfg.leaf1['id'])
             .build()
         )
 

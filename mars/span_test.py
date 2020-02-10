@@ -46,9 +46,32 @@ class SPANTest(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
+        self.port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
+    def port_configuration(self):
+        cfg.leaf0['port46']  = (
+            Port(cfg.leaf0['front_port'][0])
+            .tagged(False)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf0['port48'] = (
+            Port(cfg.leaf0['front_port'][1])
+            .tagged(False)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf1['port46'] = (
+            Port(cfg.leaf1['front_port'][0])
+            .tagged(False)
+            .nos(cfg.leaf1['nos'])
+        )
+        cfg.leaf1['port48'] = (
+            Port(cfg.leaf1['front_port'][1])
+            .tagged(False)
+            .nos(cfg.leaf1['nos'])
+        )
 
 class SetAndGetTest(SPANTest):
     """
@@ -165,8 +188,8 @@ class SameLeafUplinkDirectionTest(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', ['48/untag'], cfg.leaf0['id'])
-            .segment_member('s1', ['48/untag'], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['port48'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -282,7 +305,7 @@ class DifferentLeafUplinkDirectionTest(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', ['46/untag', '48/untag'], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf1['port46'].name, cfg.leaf1['port48'].name], cfg.leaf1['id'])
             .build()
         )
 

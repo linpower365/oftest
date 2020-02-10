@@ -26,14 +26,14 @@ p3: port 48 of leaf1
 import oftest.base_tests as base_tests
 from oftest import config
 from oftest.testutils import *
-import config as test_config
+import config as cfg
 import requests
 import time
 import utils
 from utils import *
 
-URL = test_config.API_BASE_URL
-LOGIN = test_config.LOGIN
+URL = cfg.API_BASE_URL
+LOGIN = cfg.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
@@ -43,9 +43,32 @@ class Tenants(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
+        self.port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
+    def port_configuration(self):
+        cfg.leaf0['port46']  = (
+            Port(cfg.leaf0['front_port'][0])
+            .tagged(True)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf0['port48'] = (
+            Port(cfg.leaf0['front_port'][1])
+            .tagged(True)
+            .nos(cfg.leaf0['nos'])
+        )
+        cfg.leaf1['port46'] = (
+            Port(cfg.leaf1['front_port'][0])
+            .tagged(True)
+            .nos(cfg.leaf1['nos'])
+        )
+        cfg.leaf1['port48'] = (
+            Port(cfg.leaf1['front_port'][1])
+            .tagged(True)
+            .nos(cfg.leaf1['nos'])
+        )
 
 class TenantsGetTest(Tenants):
     """
@@ -241,8 +264,8 @@ class SegmentVlanTypeConnectionTest(Tenants):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
-            .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
-            .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['port46'].name, cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -303,8 +326,8 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
-            .segment_member('s1', ['46/tag', '48/tag'], test_config.leaf0['id'])
-            .segment_member('s1', ['46/tag'], test_config.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['port46'].name, cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -350,7 +373,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
 
         # disconnect between spine0 and leaf1
-        spine0_port_50 = Port(50, test_config.spine0['id'])
+        spine0_port_50 = DevicePort(50, cfg.spine0['id'])
         spine0_port_50.link_down()
 
         utils.wait_for_system_stable()
@@ -368,7 +391,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         spine0_port_50.link_up()
 
         # disconnection between spine1 and leaf1
-        spine1_port_50 = Port(50, test_config.spine1['id'])
+        spine1_port_50 = DevicePort(50, cfg.spine1['id'])
         spine1_port_50.link_down()
 
         utils.wait_for_system_stable()
@@ -406,22 +429,22 @@ class SegmentVxlanTypeConnectionTest(Tenants):
 
             uplink_segment_leaf0spine0 = (
                 UplinkSegment('leaf0spine0')
-                .device_id(test_config.leaf0['id'])
+                .device_id(cfg.leaf0['id'])
                 .vlan(200)
                 .ports(["49/tag"])
                 .gateway("192.168.200.2")
-                .gateway_mac(test_config.spine0['mac'])
+                .gateway_mac(cfg.spine0['mac'])
                 .ip_address("192.168.200.1/24")
                 .build()
             )
 
             uplink_segment_leaf1spine0 = (
                 UplinkSegment('leaf1spine0')
-                .device_id(test_config.leaf1['id'])
+                .device_id(cfg.leaf1['id'])
                 .vlan(100)
                 .ports(["49/tag"])
                 .gateway("192.168.100.2")
-                .gateway_mac(test_config.spine0['mac'])
+                .gateway_mac(cfg.spine0['mac'])
                 .ip_address("192.168.100.1/24")
                 .build()
             )
@@ -431,8 +454,8 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             t1 = (
                 Tenant('t1')
                 .segment('s1', 'vxlan', [], vni)
-                .access_port('s1', 'leaf0access', test_config.leaf0['id'], 48, leaf0_access_vlan_id)
-                .access_port('s1', 'leaf1access', test_config.leaf1['id'], 48, leaf1_access_vlan_id)
+                .access_port('s1', 'leaf0access', cfg.leaf0['id'], 48, leaf0_access_vlan_id)
+                .access_port('s1', 'leaf1access', cfg.leaf1['id'], 48, leaf1_access_vlan_id)
                 .network_port('s1', 'leaf0network', ['192.168.100.1'], uplink_segment_name[0])
                 .network_port('s1', 'leaf1network', ['192.168.200.1'], uplink_segment_name[1])
                 .build()
@@ -441,9 +464,9 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             utils.wait_for_system_stable()
             # utils.wait_for_system_stable()
 
-            configure_spine(test_config.spine0['mgmtIpAddress'])
-            configure_leaf(test_config.leaf0['mgmtIpAddress'], "200", str(leaf0_access_vlan_id))
-            configure_leaf(test_config.leaf1['mgmtIpAddress'], "100", str(leaf1_access_vlan_id))
+            configure_spine(cfg.spine0['mgmtIpAddress'])
+            configure_leaf(cfg.leaf0['mgmtIpAddress'], "200", str(leaf0_access_vlan_id))
+            configure_leaf(cfg.leaf1['mgmtIpAddress'], "100", str(leaf1_access_vlan_id))
 
             utils.wait_for_system_stable()
 
@@ -474,9 +497,9 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             t1.delete_segment('s1')
             t1.destroy()
 
-            clear_spine_configuration(test_config.spine0['mgmtIpAddress'])
-            clear_leaf_configuration(test_config.leaf0['mgmtIpAddress'], str(leaf0_access_vlan_id))
-            clear_leaf_configuration(test_config.leaf1['mgmtIpAddress'], str(leaf1_access_vlan_id))
+            clear_spine_configuration(cfg.spine0['mgmtIpAddress'])
+            clear_leaf_configuration(cfg.leaf0['mgmtIpAddress'], str(leaf0_access_vlan_id))
+            clear_leaf_configuration(cfg.leaf1['mgmtIpAddress'], str(leaf1_access_vlan_id))
 
             # clear queue packet
             self.dataplane.flush()

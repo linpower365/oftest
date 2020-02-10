@@ -124,3 +124,7 @@ dhcp_server = {
 devices = [spine0, spine1, leaf0, leaf1]
 spines = [spine0, spine1]
 leaves = [leaf0, leaf1]
+
+# test ports mapping front ports
+leaf0['front_port'] = [46, 48]
+leaf1['front_port'] = [46, 48]
