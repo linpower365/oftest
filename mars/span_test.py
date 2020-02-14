@@ -80,8 +80,8 @@ class SetAndGetTest(SPANTest):
 
     def runTest(self):
         session_id = 1
-        source_port = 46
-        target_port = 48
+        source_port = cfg.leaf0['port46'].number
+        target_port = cfg.leaf0['port48'].number
         direction = 'both'
 
         span = (
@@ -137,8 +137,8 @@ class SameLeafDescendingDirectionTest(SPANTest):
         ports = sorted(config["port_map"].keys())
 
         session_id = 1
-        source_port = 46
-        target_port = 48
+        source_port = cfg.leaf0['port46'].number
+        target_port = cfg.leaf0['port48'].number
 
         for direction in ['rx', 'both']:
             span = (
@@ -194,8 +194,8 @@ class SameLeafUplinkDirectionTest(SPANTest):
         )
 
         session_id = 1
-        source_port = 48
-        target_port = 46
+        source_port = cfg.leaf0['port48'].number
+        target_port = cfg.leaf0['port46'].number
 
         for direction in ['tx', 'both']:
             span = (
@@ -252,8 +252,8 @@ class DifferentDescendingDirectionLeafTest(SPANTest):
         ports = sorted(config["port_map"].keys())
 
         session_id = 1
-        source_port = 46
-        target_port = 46
+        source_port = cfg.leaf0['port46'].number
+        target_port = cfg.leaf1['port46'].number
         direction = 'rx'
 
         for direction in ['rx', 'both']:
@@ -310,8 +310,8 @@ class DifferentLeafUplinkDirectionTest(SPANTest):
         )
 
         session_id = 1
-        source_port = 48
-        target_port = 46
+        source_port = cfg.leaf1['port48'].number
+        target_port = cfg.leaf0['port46'].number
 
         for direction in ['tx', 'both']:
             span = (

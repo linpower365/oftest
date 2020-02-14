@@ -653,6 +653,14 @@ class Port():
             return "{}/{}".format(port_str, tagged_str)
         else:
             return "{}/{}".format(self._port_id, tagged_str)
+    @property
+    def number(self):
+        if self._nos == 'aos':
+            return self._port_id
+        elif self._nos == 'sonic':
+            return self._port_id - 1
+        else:
+            return self._port_id
 
 class PolicyRoute():
 
