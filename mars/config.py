@@ -23,6 +23,8 @@ if socket.gethostname() == 'AutoTestMars':
     INI_FILE = "auto-test.ini"
 elif socket.gethostname() == 'Mars-charles':
     INI_FILE = "mars-charles.ini"
+elif socket.gethostname() == 'ubuntu-mars':
+    INI_FILE = "mars-mini-pc.ini"
 
 print 'Test Host: ' + socket.gethostname()
 print 'Test INI : ' + INI_FILE
@@ -41,6 +43,7 @@ spine0 = {
     'mfr': conf.get('spine0', 'mfr'),
     'port': conf.get('spine0', 'port'),
     'protocol': conf.get('spine0', 'protocol'),
+    'mgmtPort': conf.get('spine0', 'mgmtPort'),
 }
 
 spine1 = {
@@ -53,6 +56,7 @@ spine1 = {
     'mfr': conf.get('spine1', 'mfr'),
     'port': conf.get('spine1', 'port'),
     'protocol': conf.get('spine1', 'protocol'),
+    'mgmtPort': conf.get('spine1', 'mgmtPort'),
 }
 
 leaf0 = {
@@ -65,6 +69,7 @@ leaf0 = {
     'mfr': conf.get('leaf0', 'mfr'),
     'port': conf.get('leaf0', 'port'),
     'protocol': conf.get('leaf0', 'protocol'),
+    'mgmtPort': conf.get('leaf0', 'mgmtPort'),
 }
 
 leaf1 = {
@@ -77,6 +82,7 @@ leaf1 = {
     'mfr': conf.get('leaf1', 'mfr'),
     'port': conf.get('leaf1', 'port'),
     'protocol': conf.get('leaf1', 'protocol'),
+    'mgmtPort': conf.get('leaf1', 'mgmtPort'),
 }
 
 host0 = {
