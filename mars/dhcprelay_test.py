@@ -200,7 +200,7 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
         case_item_list = [
             #s1_vlan_id s2_vlan_id  s1_vlan_ip       s2_vlan_ip         dhcp_server_ip      allocated_ip
             (50,        100,        '192.168.50.1', '192.168.100.1',    '192.168.100.20',   '192.168.50.51'),
-            (60,        200,        '192.168.60.1', '192.168.200.1',    '192.168.200.20',   '192.168.60.51')
+            # (60,        200,        '192.168.60.1', '192.168.200.1',    '192.168.200.20',   '192.168.60.51')
         ]
 
         for case_item in case_item_list:
@@ -233,8 +233,8 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             )
 
             cfg.dhcp_server['ip'] = dhcp_server_ip
-            configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
-            configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
+            # configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/48', s2_vlan_id)
+            configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/48', s2_vlan_id)
 
             # verify dhcp discover
             dhcp_discover = (
@@ -336,8 +336,8 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         )
 
         cfg.dhcp_server['ip'] = '192.168.100.20'
-        configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
-        configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
+        configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/48', s2_vlan_id)
+        configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/48', s2_vlan_id)
 
         # verify dhcp discover
         dhcp_discover = (

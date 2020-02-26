@@ -375,7 +375,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
             cfg.host0['ip'] = '192.168.10.30'
             cfg.host2['ip'] = '192.168.20.30'
 
-            configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+            configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/48', s2_vlan_id)
 
             pkt_from_p0_to_p2 = simple_tcp_packet(
                 pktlen=68,
@@ -747,7 +747,7 @@ class ExternalRouterTest(TenantLogicalRouter):
         cfg.host1['ip'] = '10.10.10.10'
         cfg.external_router0['ip'] = '192.168.50.100'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/49', s1_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/47', s1_vlan_id)
 
         lrouter = (
             LogicalRouter('r1', 't1')
@@ -798,7 +798,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
 
     def tearDown(self):
         TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, 50)
+        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, 47)
 
     def runTest(self):
         s1_vlan_id = 50
@@ -822,7 +822,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
         cfg.external_router0['ip'] = '192.168.50.120'
         cfg.external_router0['mac'] = '00:00:02:00:00:11'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/49', s1_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/47', s1_vlan_id)
 
         pr1 = (
             PolicyRoute('pr1')
@@ -913,7 +913,7 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
         cfg.external_router1['ip'] = '192.168.50.130'
         cfg.external_router1['mac'] = '00:00:02:00:00:22'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router1, '1/50', s1_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router1, '1/48', s1_vlan_id)
 
         pr1 = (
             PolicyRoute('pr1')
@@ -1003,7 +1003,7 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         cfg.host0['ip'] = '192.168.10.10'
         cfg.host1['ip'] = '192.168.20.20'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/47', s2_vlan_id)
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
@@ -1031,7 +1031,7 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
 
         cfg.host2['ip'] = '192.168.20.30'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/48', s2_vlan_id)
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
@@ -1100,7 +1100,7 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 1
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/47', s2_vlan_id)
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
@@ -1122,7 +1122,7 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 2
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/48', s2_vlan_id)
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
@@ -1144,7 +1144,7 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 3
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, '1/50', s3_vlan_id)
+        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, '1/48', s3_vlan_id)
 
         pkt_from_p0_to_p3 = simple_tcp_packet(
             pktlen=68,
