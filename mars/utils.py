@@ -82,6 +82,60 @@ def remove_arp(ip_address, target, vlan):
 
     telnet_and_execute(ip_address, command_list)
 
+def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
+    arp_request = simple_arp_packet(
+        eth_dst='ff:ff:ff:ff:ff:ff',
+        eth_src=sender['mac'],
+        arp_op=1,
+        ip_snd=sender['ip'],
+        ip_tgt=target_ip,
+        hw_snd=sender['mac'],
+        hw_tgt='00:00:00:00:00:00'
+    )
+
+    spine = None
+    for i in range(count):
+        dataplane.send(port, str(arp_request))
+        (_, pkt, _) = dataplane.poll(port_number=port, timeout=1)
+
+        if pkt is not None:
+            hex_pkt = pkt.encode('hex')
+
+            if debug:
+                print 'Received packet from port {}'.format(port)
+                print 'src mac = {}'.format(hex_pkt[0:12])
+                print 'dst mac = {}'.format(hex_pkt[12:24])
+                print 'ether type = {}'.format(hex_pkt[24:28])
+                print 'arp op = {}'.format(hex_pkt[40:44])
+
+            if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
+                if hex_pkt[12:24] == test_config.spine0['mac'].replace(':', ''):
+                    spine = test_config.spine0
+                elif hex_pkt[12:24] == test_config.spine1['mac'].replace(':', ''):
+                    spine = test_config.spine1
+                else:
+                    assert False, 'Getting spine MAC address fail! '
+
+            if debug:
+                print spine
+
+        wait_for_seconds(1)
+
+    assert spine is not None, 'Get master spine failure!'
+    return spine
+
+def send_icmp_echo_request(dataplane, sender, target, dst_ip, port):
+    icmp_echo_request = simple_icmp_packet(
+        eth_dst=target['mac'],
+        eth_src=sender['mac'],
+        ip_src=sender['ip'],
+        ip_dst=dst_ip,
+    )
+
+    for i in range(5):
+        dataplane.send(port, str(icmp_echo_request))
+        wait_for_seconds(1)
+
 def clear_spine_configuration(ip_address):
     command_list = [
         ("config", "(config)#"),

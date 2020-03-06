@@ -411,7 +411,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
         t1.destroy()
 
         wait_for_system_stable()
-
+@disabled
 class SegmentVxlanTypeConnectionTest(Tenants):
     """
     Test segment vxlan type connection.

@@ -281,7 +281,7 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
         ports = sorted(config["port_map"].keys())
         segment_ip_list = [
             (['192.168.10.1'], ['192.168.20.1']),
-            ([], [])
+            # ([], [])
         ]
 
         for (s1_ip, s2_ip) in segment_ip_list:
@@ -304,13 +304,14 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
             cfg.host0['ip'] = '192.168.10.10'
             cfg.host1['ip'] = '192.168.20.20'
 
-            configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s1_vlan_id)
+            master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
+            send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
 
             pkt_from_p0_to_p1 = simple_tcp_packet(
                 pktlen=68,
                 dl_vlan_enable=True,
                 vlan_vid=s1_vlan_id,
-                eth_dst=cfg.spine0['mac'],
+                eth_dst=master_spine['mac'],
                 eth_src=cfg.host0['mac'],
                 ip_dst=cfg.host1['ip'],
                 ip_src=cfg.host0['ip']
@@ -322,7 +323,7 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
             pkt_expected = simple_tcp_packet(
                 pktlen=64,
                 eth_dst=cfg.host1['mac'],
-                eth_src=cfg.spine0['mac'],
+                eth_src=master_spine['mac'],
                 ip_dst=cfg.host1['ip'],
                 ip_src=cfg.host0['ip'],
                 ip_ttl=63
@@ -335,8 +336,6 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
                 lrouter.destroy()
 
             t1.destroy()
-
-            remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, s1_vlan_id)
 
             # clear queue packet
             self.dataplane.flush()
@@ -352,7 +351,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
         ports = sorted(config["port_map"].keys())
         segment_ip_list = [
             (['192.168.10.1'], ['192.168.20.1']),
-            ([], [])
+            # ([], [])
         ]
 
         for (s1_ip, s2_ip) in segment_ip_list:
@@ -375,13 +374,14 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
             cfg.host0['ip'] = '192.168.10.30'
             cfg.host2['ip'] = '192.168.20.30'
 
-            configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+            master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
+            send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
             pkt_from_p0_to_p2 = simple_tcp_packet(
                 pktlen=68,
                 dl_vlan_enable=True,
                 vlan_vid=s1_vlan_id,
-                eth_dst=cfg.spine0['mac'],
+                eth_dst=master_spine['mac'],
                 eth_src=cfg.host0['mac'],
                 ip_dst=cfg.host2['ip'],
                 ip_src=cfg.host0['ip']
@@ -393,7 +393,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
             pkt_expected = simple_tcp_packet(
                 pktlen=64,
                 eth_dst=cfg.host2['mac'],
-                eth_src=cfg.spine0['mac'],
+                eth_src=master_spine['mac'],
                 ip_dst=cfg.host2['ip'],
                 ip_src=cfg.host0['ip'],
                 ip_ttl=63
@@ -406,8 +406,6 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
                 lrouter.destroy()
 
             t1.destroy()
-
-            remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, s2_vlan_id)
 
             # clear queue packet
             self.dataplane.flush()
@@ -429,6 +427,7 @@ class TwoSegmentsInSameLeafDifferentTenantWithoutSystemTenant(TenantLogicalRoute
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
             .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -441,48 +440,36 @@ class TwoSegmentsInSameLeafDifferentTenantWithoutSystemTenant(TenantLogicalRoute
 
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host1['ip'] = '192.168.20.30'
+        cfg.host2['ip'] = '192.168.10.40'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
-
-        pkt_from_p0_to_p1 = simple_tcp_packet(
-            pktlen=68,
-            dl_vlan_enable=True,
-            vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
-            eth_src=cfg.host0['mac'],
-            ip_dst=cfg.host1['ip'],
-            ip_src=cfg.host0['ip']
-        )
-
-        # check connection between 2 segments
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-
-        pkt_expected = simple_tcp_packet(
+        pkt_from_p0_to_p1 = simple_eth_packet(
             pktlen=64,
             eth_dst=cfg.host1['mac'],
-            eth_src=cfg.spine0['mac'],
-            ip_dst=cfg.host1['ip'],
-            ip_src=cfg.host0['ip'],
-            ip_ttl=63
+            eth_src=cfg.host0['mac'],
         )
 
+        pkt_from_p0_to_p2 = simple_eth_packet(
+            pktlen=64,
+            eth_dst=cfg.host2['mac'],
+            eth_src=cfg.host0['mac'],
+        )
+
+        # check connection in same segment
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
+        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
+
         # no system tenant created, can not communicate with different tenants
-        verify_no_packet(self, str(pkt_expected), ports[1])
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        verify_no_packet(self, str(pkt_from_p0_to_p1), ports[1])
 
         t1.destroy()
         t2.destroy()
-
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, s2_vlan_id)
 
 class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and different tenent.
     With system tenant configuration.
     '''
-
-    def tearDown(self):
-        TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, 20)
 
     def runTest(self):
         s1_vlan_id = 10
@@ -531,13 +518,14 @@ class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host1['ip'] = '192.168.20.30'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip']
@@ -549,7 +537,7 @@ class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host1['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -591,16 +579,29 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogical
             .build()
         )
 
+        lrouter_r1 = (
+            LogicalRouter('r1', 't1')
+            .interfaces(['s1'])
+            .build()
+        )
+
+        lrouter_r2 = (
+            LogicalRouter('r2', 't2')
+            .interfaces(['s2'])
+            .build()
+        )
+
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host2['ip'] = '192.168.20.30'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/50', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip']
@@ -612,7 +613,7 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogical
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host2['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -624,17 +625,11 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogical
         t1.destroy()
         t2.destroy()
 
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, s2_vlan_id)
-
 class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in different leaf and different tenent.
     With system tenant configuration.
     '''
-
-    def tearDown(self):
-        TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, 20)
 
     def runTest(self):
         s1_vlan_id = 10
@@ -683,13 +678,14 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRou
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host2['ip'] = '192.168.20.30'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip']
@@ -701,7 +697,7 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRou
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host2['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -722,10 +718,6 @@ class ExternalRouterTest(TenantLogicalRouter):
     Test logical router in external router environment
     '''
 
-    def tearDown(self):
-        TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, 50)
-
     def runTest(self):
         s1_vlan_id = 50
         s2_vlan_id = 60
@@ -741,13 +733,7 @@ class ExternalRouterTest(TenantLogicalRouter):
             .build()
         )
 
-        wait_for_system_stable()
-
-        cfg.host0['ip'] = '192.168.50.10'
-        cfg.host1['ip'] = '10.10.10.10'
         cfg.external_router0['ip'] = '192.168.50.100'
-
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/49', s1_vlan_id)
 
         lrouter = (
             LogicalRouter('r1', 't1')
@@ -757,14 +743,19 @@ class ExternalRouterTest(TenantLogicalRouter):
             .build()
         )
 
-        wait_for_system_stable()
+        cfg.host0['ip'] = '192.168.50.10'
+        cfg.host1['ip'] = '10.10.10.10'
+
+        master_spine = get_master_spine(self.dataplane, cfg.external_router0, s1_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
+
         wait_for_system_stable()
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip']
@@ -778,7 +769,7 @@ class ExternalRouterTest(TenantLogicalRouter):
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.external_router0['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -795,10 +786,6 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
     '''
     Test logical router with policy router configuration in same leaf
     '''
-
-    def tearDown(self):
-        TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, 50)
 
     def runTest(self):
         s1_vlan_id = 50
@@ -822,13 +809,11 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
         cfg.external_router0['ip'] = '192.168.50.120'
         cfg.external_router0['mac'] = '00:00:02:00:00:11'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, '1/49', s1_vlan_id)
-
         pr1 = (
             PolicyRoute('pr1')
             .ingress_segments(['s1'])
             .ingress_ports([
-                '{}/{}'.format(cfg.leaf0['id'], 46)
+                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['port46'].number)
                 ])
             .action('permit')
             .sequence_no('1')
@@ -844,7 +829,9 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
             .build()
         )
 
-        wait_for_system_stable()
+        master_spine = get_master_spine(self.dataplane, cfg.external_router0, s1_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
+
         wait_for_system_stable()
 
         for dst_ip in [cfg.host1['ip'], '10.10.10.20']:
@@ -852,7 +839,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
                 pktlen=68,
                 dl_vlan_enable=True,
                 vlan_vid=s1_vlan_id,
-                eth_dst=cfg.spine0['mac'],
+                eth_dst=master_spine['mac'],
                 eth_src=cfg.host0['mac'],
                 ip_dst=dst_ip,
                 ip_src=cfg.host0['ip']
@@ -864,7 +851,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
             pkt_expected = simple_tcp_packet(
                 pktlen=64,
                 eth_dst=cfg.external_router0['mac'],
-                eth_src=cfg.spine0['mac'],
+                eth_src=master_spine['mac'],
                 ip_dst=dst_ip,
                 ip_src=cfg.host0['ip'],
                 ip_ttl=63
@@ -913,13 +900,11 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
         cfg.external_router1['ip'] = '192.168.50.130'
         cfg.external_router1['mac'] = '00:00:02:00:00:22'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router1, '1/50', s1_vlan_id)
-
         pr1 = (
             PolicyRoute('pr1')
             .ingress_segments(['s1'])
             .ingress_ports([
-                '{}/{}'.format(cfg.leaf0['id'], 46)
+                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['port46'].number)
                 ])
             .action('permit')
             .sequence_no('1')
@@ -935,7 +920,9 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
             .build()
         )
 
-        wait_for_system_stable()
+        master_spine = get_master_spine(self.dataplane, cfg.external_router1, s1_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.external_router1, master_spine, s1_ip, ports[2])
+        self.dataplane.flush()
         wait_for_system_stable()
 
         for dst_ip in [cfg.host2['ip'], '10.10.10.50']:
@@ -943,7 +930,7 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
                 pktlen=68,
                 dl_vlan_enable=True,
                 vlan_vid=s1_vlan_id,
-                eth_dst=cfg.spine0['mac'],
+                eth_dst=master_spine['mac'],
                 eth_src=cfg.host0['mac'],
                 ip_dst=dst_ip,
                 ip_src=cfg.host0['ip']
@@ -955,7 +942,7 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
             pkt_expected = simple_udp_packet(
                 pktlen=64,
                 eth_dst=cfg.external_router1['mac'],
-                eth_src=cfg.spine0['mac'],
+                eth_src=master_spine['mac'],
                 ip_dst=dst_ip,
                 ip_src=cfg.host0['ip'],
                 ip_ttl=63
@@ -1003,13 +990,15 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         cfg.host0['ip'] = '192.168.10.10'
         cfg.host1['ip'] = '192.168.20.20'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        self.dataplane.flush()
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip']
@@ -1021,7 +1010,7 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host1['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -1031,13 +1020,15 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
 
         cfg.host2['ip'] = '192.168.20.30'
 
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        self.dataplane.flush()
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip']
@@ -1049,7 +1040,7 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         pkt_expected = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host2['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -1059,9 +1050,6 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
 
         t1.destroy()
         lrouter.destroy()
-
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, s2_vlan_id)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, s2_vlan_id)
 
 class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
     """
@@ -1100,13 +1088,16 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 1
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        self.dataplane.flush()
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip']
@@ -1115,20 +1106,23 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         pkt_expected_for_host1 = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host1['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host1['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
         )
 
         # case 2
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        self.dataplane.flush()
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip']
@@ -1137,20 +1131,23 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         pkt_expected_for_host2 = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host2['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host2['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
         )
 
         # case 3
-        configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, '1/50', s3_vlan_id)
+        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, '1/50', s3_vlan_id)
+        master_spine = get_master_spine(self.dataplane, cfg.host3, s3_ip, ports[3])
+        send_icmp_echo_request(self.dataplane, cfg.host3, master_spine, s3_ip, ports[3])
+        self.dataplane.flush()
 
         pkt_from_p0_to_p3 = simple_tcp_packet(
             pktlen=68,
             dl_vlan_enable=True,
             vlan_vid=s1_vlan_id,
-            eth_dst=cfg.spine0['mac'],
+            eth_dst=master_spine['mac'],
             eth_src=cfg.host0['mac'],
             ip_dst=cfg.host3['ip'],
             ip_src=cfg.host0['ip']
@@ -1159,7 +1156,7 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         pkt_expected_for_host3 = simple_tcp_packet(
             pktlen=64,
             eth_dst=cfg.host3['mac'],
-            eth_src=cfg.spine0['mac'],
+            eth_src=master_spine['mac'],
             ip_dst=cfg.host3['ip'],
             ip_src=cfg.host0['ip'],
             ip_ttl=63
@@ -1178,7 +1175,3 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
 
         t1.destroy()
         lrouter.destroy()
-
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, s2_vlan_id)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, s2_vlan_id)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, s3_vlan_id)

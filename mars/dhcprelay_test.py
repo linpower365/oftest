@@ -77,6 +77,61 @@ class DHCPRelayTest(base_tests.SimpleDataPlane):
             .nos(cfg.leaf1['nos'])
         )
 
+    def get_master_spine(self, sender, target_ip, port, debug=False):
+        arp_request = simple_arp_packet(
+            eth_dst='ff:ff:ff:ff:ff:ff',
+            eth_src=sender['mac'],
+            arp_op=1,
+            ip_snd=sender['ip'],
+            ip_tgt=target_ip,
+            hw_snd=sender['mac'],
+            hw_tgt='00:00:00:00:00:00',
+        )
+
+        for i in range(5):
+            self.dataplane.send(port, str(arp_request))
+            (_, pkt, _) = self.dataplane.poll(port_number=port, timeout=1)
+            if pkt is not None:
+                hex_pkt = pkt.encode('hex')
+            else:
+                continue
+
+            if debug:
+                print 'Received packet from port {}'.format(port)
+                print 'src mac = {}'.format(hex_pkt[0:12])
+                print 'dst mac = {}'.format(hex_pkt[12:24])
+                print 'ether type = {}'.format(hex_pkt[24:28])
+                print 'arp op = {}'.format(hex_pkt[40:44])
+
+            spine = None
+            if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
+                if hex_pkt[12:24] == cfg.spine0['mac'].replace(':', ''):
+                    spine = cfg.spine0
+                elif hex_pkt[12:24] == cfg.spine1['mac'].replace(':', ''):
+                    spine = cfg.spine1
+                else:
+                    assert False, 'Getting spine MAC address fail! '
+
+            if debug:
+                print spine
+
+            wait_for_seconds(1)
+
+        assert spine is not None, 'Get master spine failure!'
+        return spine
+
+    def send_icmp_echo_request(self, sender, target, dst_ip, port):
+        icmp_echo_request = simple_icmp_packet(
+            eth_dst=target['mac'],
+            eth_src=sender['mac'],
+            ip_src=sender['ip'],
+            ip_dst=dst_ip,
+        )
+
+        for i in range(5):
+            self.dataplane.send(port, str(icmp_echo_request))
+            wait_for_seconds(1)
+
     def generate_discover_pkt(self, client):
         dhcp_discover = (
             Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff')/
@@ -233,8 +288,9 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             )
 
             cfg.dhcp_server['ip'] = dhcp_server_ip
-            configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
-            configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
+
+            spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
+            self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
             # verify dhcp discover
             dhcp_discover = (
@@ -243,7 +299,7 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             )
             expected_dhcp_discover = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_expected_discover_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+                .generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
             )
 
             self.dataplane.send(ports[0], str(dhcp_discover))
@@ -252,11 +308,11 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             # verify dhcp offer
             dhcp_offer = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+                .generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
             )
             expected_dhcp_offer = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_expected_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+                .generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
             )
 
             self.dataplane.send(ports[3], str(dhcp_offer))
@@ -269,7 +325,7 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             )
             expected_dhcp_request = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_expected_request_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+                .generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
             )
 
             self.dataplane.send(ports[0], str(dhcp_request))
@@ -278,19 +334,15 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
             # verify dhcp ack
             dhcp_ack = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+                .generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
             )
             expected_dhcp_ack = (
                 super(DHCPRelayTransmitPacketTest, self)
-                .generate_expected_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+                .generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
             )
 
             self.dataplane.send(ports[3], str(dhcp_ack))
             verify_packet(self, str(expected_dhcp_ack), ports[0])
-
-            # clear arp cache
-            remove_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, s2_vlan_id)
-            remove_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, s2_vlan_id)
 
             dhcp_relay.destroy()
             lrouter.destroy()
@@ -336,8 +388,9 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         )
 
         cfg.dhcp_server['ip'] = '192.168.100.20'
-        configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
-        configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
+
+        spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
+        self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         # verify dhcp discover
         dhcp_discover = (
@@ -346,7 +399,7 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         )
         expected_dhcp_discover = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_expected_discover_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+            .generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
         )
 
         self.dataplane.send(ports[0], str(dhcp_discover))
@@ -355,11 +408,11 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         # verify dhcp offer
         dhcp_offer = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
         expected_dhcp_offer = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_expected_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[3], str(dhcp_offer))
@@ -372,7 +425,7 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         )
         expected_dhcp_request = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_expected_request_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+            .generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[0], str(dhcp_request))
@@ -381,19 +434,15 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
         # verify dhcp ack
         dhcp_ack = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
         expected_dhcp_ack = (
             super(DHCPRelayMultipleServerTest, self)
-            .generate_expected_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[3], str(dhcp_ack))
         verify_packet(self, str(expected_dhcp_ack), ports[0])
-
-        # clear arp cache
-        remove_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, s2_vlan_id)
-        remove_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, s2_vlan_id)
 
         dhcp_relay.destroy()
         lrouter.destroy()
@@ -465,8 +514,10 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         )
 
         cfg.dhcp_server['ip'] = dhcp_server_ip
-        configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s4_vlan_id)
-        configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s4_vlan_id)
+
+        #TODO: this case needs VRF feature
+        spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
+        self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         # verify dhcp discover
         dhcp_discover = (
@@ -475,7 +526,7 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         )
         expected_dhcp_discover = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_expected_discover_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip)
+            .generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip)
         )
 
         self.dataplane.send(ports[0], str(dhcp_discover))
@@ -484,11 +535,11 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         # verify dhcp offer
         dhcp_offer = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
         expected_dhcp_offer = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_expected_offer_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[3], str(dhcp_offer))
@@ -501,7 +552,7 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         )
         expected_dhcp_request = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_expected_request_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip, allocated_ip)
+            .generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[0], str(dhcp_request))
@@ -510,19 +561,15 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         # verify dhcp ack
         dhcp_ack = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
         expected_dhcp_ack = (
             super(DHCPRelayCrossSystemTenantTest, self)
-            .generate_expected_ack_pkt(cfg.spine1, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            .generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
         )
 
         self.dataplane.send(ports[3], str(dhcp_ack))
         verify_packet(self, str(expected_dhcp_ack), ports[0])
-
-        # clear arp cache
-        remove_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, s4_vlan_id)
-        remove_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, s4_vlan_id)
 
         dhcp_relay.destroy()
         lrouter_r1.destroy()
@@ -541,9 +588,6 @@ class DHCPRelayPhysicalServerTest(DHCPRelayTest):
 
     def tearDown(self):
         DHCPRelayTest.tearDown(self)
-        s2_vlan_id = 100
-        # remove_arp(test_config.spine0['mgmtIpAddress'], test_config.dhcp_server, s2_vlan_id)
-        # remove_arp(test_config.spine1['mgmtIpAddress'], test_config.dhcp_server, s2_vlan_id)
 
     def runTest(self):
         s1_vlan_id = 50
@@ -575,5 +619,3 @@ class DHCPRelayPhysicalServerTest(DHCPRelayTest):
         )
 
         cfg.dhcp_server['ip'] = dhcp_server_ip
-        # configure_arp(test_config.spine0['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
-        # configure_arp(test_config.spine1['mgmtIpAddress'], cfg.dhcp_server, '1/50', s2_vlan_id)
