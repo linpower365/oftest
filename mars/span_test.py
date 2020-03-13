@@ -19,10 +19,10 @@ Test environment
       |    |         |    |
     host0 host1    host2 host3
 
-p0: port 46 of leaf0
-p1: port 48 of leaf0
-p2: port 46 of leaf1
-p3: port 48 of leaf1
+p0: port A of leaf0
+p1: port B of leaf0
+p2: port A of leaf1
+p3: port B of leaf1
 
 """
 
@@ -52,22 +52,22 @@ class SPANTest(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.tearDown(self)
 
     def port_configuration(self):
-        cfg.leaf0['port46']  = (
+        cfg.leaf0['portA']  = (
             Port(cfg.leaf0['front_port'][0])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
-        cfg.leaf0['port48'] = (
+        cfg.leaf0['portB'] = (
             Port(cfg.leaf0['front_port'][1])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
-        cfg.leaf1['port46'] = (
+        cfg.leaf1['portA'] = (
             Port(cfg.leaf1['front_port'][0])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
         )
-        cfg.leaf1['port48'] = (
+        cfg.leaf1['portB'] = (
             Port(cfg.leaf1['front_port'][1])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
@@ -80,8 +80,8 @@ class SetAndGetTest(SPANTest):
 
     def runTest(self):
         session_id = 1
-        source_port = cfg.leaf0['port46'].number
-        target_port = cfg.leaf0['port48'].number
+        source_port = cfg.leaf0['portA'].number
+        target_port = cfg.leaf0['portB'].number
         direction = 'both'
 
         span = (
@@ -137,8 +137,8 @@ class SameLeafDescendingDirectionTest(SPANTest):
         ports = sorted(config["port_map"].keys())
 
         session_id = 1
-        source_port = cfg.leaf0['port46'].number
-        target_port = cfg.leaf0['port48'].number
+        source_port = cfg.leaf0['portA'].number
+        target_port = cfg.leaf0['portB'].number
 
         for direction in ['rx', 'both']:
             span = (
@@ -188,14 +188,14 @@ class SameLeafUplinkDirectionTest(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['port48'].name], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['portB'].name], cfg.leaf1['id'])
             .build()
         )
 
         session_id = 1
-        source_port = cfg.leaf0['port48'].number
-        target_port = cfg.leaf0['port46'].number
+        source_port = cfg.leaf0['portB'].number
+        target_port = cfg.leaf0['portA'].number
 
         for direction in ['tx', 'both']:
             span = (
@@ -252,8 +252,8 @@ class DifferentDescendingDirectionLeafTest(SPANTest):
         ports = sorted(config["port_map"].keys())
 
         session_id = 1
-        source_port = cfg.leaf0['port46'].number
-        target_port = cfg.leaf1['port46'].number
+        source_port = cfg.leaf0['portA'].number
+        target_port = cfg.leaf1['portA'].number
         direction = 'rx'
 
         for direction in ['rx', 'both']:
@@ -305,13 +305,13 @@ class DifferentLeafUplinkDirectionTest(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf1['port46'].name, cfg.leaf1['port48'].name], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
             .build()
         )
 
         session_id = 1
-        source_port = cfg.leaf1['port48'].number
-        target_port = cfg.leaf0['port46'].number
+        source_port = cfg.leaf1['portB'].number
+        target_port = cfg.leaf0['portA'].number
 
         for direction in ['tx', 'both']:
             span = (

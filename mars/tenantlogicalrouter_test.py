@@ -19,10 +19,10 @@ Test environment
       |    |         |    |
     host0 host1    host2 host3
 
-p0: port 46 of leaf0
-p1: port 48 of leaf0
-p2: port 46 of leaf1
-p3: port 48 of leaf1
+p0: port A of leaf0
+p1: port B of leaf0
+p2: port A of leaf1
+p3: port B of leaf1
 
 """
 
@@ -53,22 +53,22 @@ class TenantLogicalRouter(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.tearDown(self)
 
     def port_configuration(self):
-        cfg.leaf0['port46']  = (
+        cfg.leaf0['portA']  = (
             Port(cfg.leaf0['front_port'][0])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
-        cfg.leaf0['port48'] = (
+        cfg.leaf0['portB'] = (
             Port(cfg.leaf0['front_port'][1])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
-        cfg.leaf1['port46'] = (
+        cfg.leaf1['portA'] = (
             Port(cfg.leaf1['front_port'][0])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
         )
-        cfg.leaf1['port48'] = (
+        cfg.leaf1['portB'] = (
             Port(cfg.leaf1['front_port'][1])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
@@ -224,13 +224,13 @@ class OneSegmentWithoutIPaddressInSameLeaf(TenantLogicalRouter):
         s1_vlan_id = 10
         ports = sorted(config["port_map"].keys())
 
-        cfg.leaf0['port46'].tagged(True)
-        cfg.leaf0['port48'].tagged(True)
+        cfg.leaf0['portA'].tagged(True)
+        cfg.leaf0['portB'].tagged(True)
 
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name, cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name, cfg.leaf0['portB'].name], cfg.leaf0['id'])
             .build()
         )
 
@@ -251,14 +251,14 @@ class OneSegmentWithoutIPaddressInDifferentLeaf(TenantLogicalRouter):
         s1_vlan_id = 20
         ports = sorted(config["port_map"].keys())
 
-        cfg.leaf0['port46'].tagged(True)
-        cfg.leaf1['port46'].tagged(True)
+        cfg.leaf0['portA'].tagged(True)
+        cfg.leaf1['portA'].tagged(True)
 
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -288,9 +288,9 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
             t1 = (
                 Tenant('t1')
                 .segment('s1', 'vlan', s1_ip, s1_vlan_id)
-                .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+                .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
                 .segment('s2', 'vlan', s2_ip, s2_vlan_id)
-                .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
+                .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
                 .build()
             )
 
@@ -358,9 +358,9 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
             t1 = (
                 Tenant('t1')
                 .segment('s1', 'vlan', s1_ip, s1_vlan_id)
-                .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+                .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
                 .segment('s2', 'vlan', s2_ip, s2_vlan_id)
-                .segment_member('s2', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+                .segment_member('s2', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
                 .build()
             )
 
@@ -426,15 +426,15 @@ class TwoSegmentsInSameLeafDifferentTenantWithoutSystemTenant(TenantLogicalRoute
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
             .build()
         )
 
@@ -481,14 +481,14 @@ class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
             .build()
         )
 
@@ -568,14 +568,14 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogical
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s2', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -641,14 +641,14 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRou
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s2', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -728,7 +728,7 @@ class ExternalRouterTest(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name, cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name, cfg.leaf0['portB'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
             .build()
         )
@@ -797,7 +797,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name, cfg.leaf0['port48'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name, cfg.leaf0['portB'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
             .build()
         )
@@ -813,7 +813,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
             PolicyRoute('pr1')
             .ingress_segments(['s1'])
             .ingress_ports([
-                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['port46'].number)
+                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['portA'].number)
                 ])
             .action('permit')
             .sequence_no('1')
@@ -887,8 +887,8 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
             .build()
         )
@@ -904,7 +904,7 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
             PolicyRoute('pr1')
             .ingress_segments(['s1'])
             .ingress_ports([
-                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['port46'].number)
+                '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['portA'].number)
                 ])
             .action('permit')
             .sequence_no('1')
@@ -974,10 +974,10 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
-            .segment_member('s2', [cfg.leaf1['port46'].name, cfg.leaf1['port48'].name], cfg.leaf1['id'])
+            .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
+            .segment_member('s2', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
             .build()
         )
 
@@ -1072,12 +1072,12 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['port46'].name], cfg.leaf0['id'])
+            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
             .segment('s2', 'vlan', [s2_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf0['port48'].name], cfg.leaf0['id'])
-            .segment_member('s2', [cfg.leaf1['port46'].name], cfg.leaf1['id'])
+            .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
+            .segment_member('s2', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
             .segment('s3', 'vlan', [s3_ip], s3_vlan_id)
-            .segment_member('s3', [cfg.leaf1['port48'].name], cfg.leaf1['id'])
+            .segment_member('s3', [cfg.leaf1['portB'].name], cfg.leaf1['id'])
             .build()
         )
 
