@@ -3,6 +3,7 @@ Provided common utils for testing
 '''
 
 import time
+import base64
 import requests
 import config as test_config
 from oftest.testutils import *
@@ -426,6 +427,35 @@ class PacketGenerator():
         )
         wait_for_system_process()
 
+class RemotePower():
+    def __init__(self, config):
+        # admin username
+        username = config['username']
+        password = config['password']
+
+        pos = {'A':0, 'B':1, 'C':2, 'D':3, 'E':4, 'F':5, 'G':6, 'H':7}
+
+        self._led = list("000000000000000000000000")
+        self._led[pos[config['plug_id']]] = '1'
+
+        # admin login
+        login = base64.b64encode(bytes('{}:{}'.format(username, password)))
+        auth_token = 'BASIC ' + login
+        self._post_header = {'Authorization': auth_token}
+
+        self._url = "http://" + config['ip'] + "/"
+
+    def On(self):
+        response = requests.post(self._url+"on.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn on remote power fail! '+ response.text
+
+    def Off(self):
+        response = requests.post(self._url+"off.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn off remote power fail! '+ response.text
+
+    def OffOn(self):
+        response = requests.post(self._url+"offon.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn off and on remote power fail! '+ response.text
 
 class Tenant():
     def __init__(self, name, type = 'Normal'):

@@ -32,6 +32,10 @@ print 'Test INI : ' + INI_FILE
 conf = ConfigParser.ConfigParser()
 conf.read('./mars/ini/' + INI_FILE)
 
+# Remote Power id/pw
+REMOTE_POWER_USERNAME = 'snmp'
+REMOTE_POWER_PASSWORD = '1234'
+
 # devices under test
 spine0 = {
     'id': conf.get('spine0', 'id'),
@@ -83,6 +87,35 @@ leaf1 = {
     'port': conf.get('leaf1', 'port'),
     'protocol': conf.get('leaf1', 'protocol'),
     'mgmtPort': conf.get('leaf1', 'mgmtPort'),
+}
+
+# remote power info
+spine0_power = {
+    'username': REMOTE_POWER_USERNAME,
+    'password': REMOTE_POWER_PASSWORD,
+    'ip': conf.get('spine0', 'remotePowerIp'),
+    'plug_id': conf.get('spine0', 'remotePowerPlugId'),
+}
+
+spine1_power = {
+    'username': REMOTE_POWER_USERNAME,
+    'password': REMOTE_POWER_PASSWORD,
+    'ip': conf.get('spine1', 'remotePowerIp'),
+    'plug_id': conf.get('spine1', 'remotePowerPlugId'),
+}
+
+leaf0_power = {
+    'username': REMOTE_POWER_USERNAME,
+    'password': REMOTE_POWER_PASSWORD,
+    'ip': conf.get('leaf0', 'remotePowerIp'),
+    'plug_id': conf.get('leaf0', 'remotePowerPlugId'),
+}
+
+leaf1_power = {
+    'username': REMOTE_POWER_USERNAME,
+    'password': REMOTE_POWER_PASSWORD,
+    'ip': conf.get('leaf1', 'remotePowerIp'),
+    'plug_id': conf.get('leaf1', 'remotePowerPlugId'),
 }
 
 host0 = {
