@@ -97,28 +97,29 @@ def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
     spine = None
     for i in range(count):
         dataplane.send(port, str(arp_request))
-        (_, pkt, _) = dataplane.poll(port_number=port, timeout=1)
+        # (_, pkt, _) = dataplane.poll(port_number=port, timeout=1)
+        for (rcv_port_number, pkt, time) in dataplane.packets(port):
 
-        if pkt is not None:
-            hex_pkt = pkt.encode('hex')
+            if pkt is not None:
+                hex_pkt = pkt.encode('hex')
 
-            if debug:
-                print 'Received packet from port {}'.format(port)
-                print 'src mac = {}'.format(hex_pkt[0:12])
-                print 'dst mac = {}'.format(hex_pkt[12:24])
-                print 'ether type = {}'.format(hex_pkt[24:28])
-                print 'arp op = {}'.format(hex_pkt[40:44])
+                if debug:
+                    print 'Received packet from port {}'.format(port)
+                    print 'src mac = {}'.format(hex_pkt[0:12])
+                    print 'dst mac = {}'.format(hex_pkt[12:24])
+                    print 'ether type = {}'.format(hex_pkt[24:28])
+                    print 'arp op = {}'.format(hex_pkt[40:44])
 
-            if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
-                if hex_pkt[12:24] == test_config.spine0['mac'].replace(':', ''):
-                    spine = test_config.spine0
-                elif hex_pkt[12:24] == test_config.spine1['mac'].replace(':', ''):
-                    spine = test_config.spine1
-                else:
-                    assert False, 'Getting spine MAC address fail! '
+                if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
+                    if hex_pkt[12:24].lower() == test_config.spine0['mac'].replace(':', '').lower():
+                        spine = test_config.spine0
+                    elif hex_pkt[12:24].lower() == test_config.spine1['mac'].replace(':', '').lower():
+                        spine = test_config.spine1
+                    else:
+                        assert False, 'Getting spine MAC address fail! '
 
-            if debug:
-                print spine
+                if debug:
+                    print spine
 
         wait_for_seconds(1)
 

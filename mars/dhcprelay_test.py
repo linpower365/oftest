@@ -289,8 +289,8 @@ class DHCPRelayTransmitPacketTest(DHCPRelayTest):
 
             cfg.dhcp_server['ip'] = dhcp_server_ip
 
-            spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
-            self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+            spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+            send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
             # verify dhcp discover
             dhcp_discover = (
@@ -389,8 +389,8 @@ class DHCPRelayMultipleServerTest(DHCPRelayTest):
 
         cfg.dhcp_server['ip'] = '192.168.100.20'
 
-        spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
-        self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+        spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+        send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         # verify dhcp discover
         dhcp_discover = (
@@ -516,8 +516,8 @@ class DHCPRelayCrossSystemTenantTest(DHCPRelayTest):
         cfg.dhcp_server['ip'] = dhcp_server_ip
 
         #TODO: this case needs VRF feature
-        spine = self.get_master_spine(cfg.dhcp_server, s1_vlan_ip, ports[3])
-        self.send_icmp_echo_request(cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+        spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+        send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         # verify dhcp discover
         dhcp_discover = (
