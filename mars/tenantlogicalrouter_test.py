@@ -873,10 +873,6 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
     Test logical router with policy router configuration in different leaf
     '''
 
-    def tearDown(self):
-        TenantLogicalRouter.tearDown(self)
-        remove_arp(cfg.spine0['mgmtIpAddress'], cfg.external_router0, 50)
-
     def runTest(self):
         s1_vlan_id = 50
         s2_vlan_id = 60
@@ -1088,7 +1084,6 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 1
-        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host1, '1/49', s2_vlan_id)
         master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
         send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
         self.dataplane.flush()
@@ -1113,7 +1108,6 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 2
-        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host2, '1/50', s2_vlan_id)
         master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
         send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
         self.dataplane.flush()
@@ -1138,7 +1132,6 @@ class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
         )
 
         # case 3
-        # configure_arp(cfg.spine0['mgmtIpAddress'], cfg.host3, '1/50', s3_vlan_id)
         master_spine = get_master_spine(self.dataplane, cfg.host3, s3_ip, ports[3])
         send_icmp_echo_request(self.dataplane, cfg.host3, master_spine, s3_ip, ports[3])
         self.dataplane.flush()

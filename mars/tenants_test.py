@@ -464,10 +464,6 @@ class SegmentVxlanTypeConnectionTest(Tenants):
             utils.wait_for_system_stable()
             # utils.wait_for_system_stable()
 
-            configure_spine(cfg.spine0['mgmtIpAddress'])
-            configure_leaf(cfg.leaf0['mgmtIpAddress'], "200", str(leaf0_access_vlan_id))
-            configure_leaf(cfg.leaf1['mgmtIpAddress'], "100", str(leaf1_access_vlan_id))
-
             utils.wait_for_system_stable()
 
             pkt_from_p1_to_p3 = simple_tcp_packet(
@@ -496,10 +492,6 @@ class SegmentVxlanTypeConnectionTest(Tenants):
 
             t1.delete_segment('s1')
             t1.destroy()
-
-            clear_spine_configuration(cfg.spine0['mgmtIpAddress'])
-            clear_leaf_configuration(cfg.leaf0['mgmtIpAddress'], str(leaf0_access_vlan_id))
-            clear_leaf_configuration(cfg.leaf1['mgmtIpAddress'], str(leaf1_access_vlan_id))
 
             # clear queue packet
             self.dataplane.flush()

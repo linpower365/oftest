@@ -24,65 +24,6 @@ def wait_for_system_process():
 def wait_for_seconds(sec):
     time.sleep(sec)
 
-def reconnect_switch_port(ip_address, port):
-    command_list = [
-        ("config", "(config)#"),
-        ("int eth " + port, "(config-if)#"),
-        ("shutdown", "(config-if)#"),
-        ("no shutdown", "(config-if)#")
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def configure_spine(ip_address):
-    command_list = [
-        ("config", "(config)#"),
-        ("vlan data", "(config-vlan)#"),
-        ("vlan 100,200", "(config-vlan)#"),
-        ("exit", "(config)#"),
-        ("int vl 100", "(config-if)#"),
-        ("ip add 192.168.100.2 255.255.255.0", "(config-if)#"),
-        ("int vl 200", "(config-if)#"),
-        ("ip add 192.168.200.2 255.255.255.0", "(config-if)#"),
-        ("exit", "(config)#"),
-        ("int eth 1/49", "(config-if)#"),
-        ("switchport allowed vlan add 200 tagged", "(config-if)#"),
-        ("int eth 1/50", "(config-if)#"),
-        ("switchport allowed vlan add 100 tagged", "(config-if)#")
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def configure_leaf(ip_address, src_if_vlan_id, access_vlan_id):
-    command_list = [
-        ("config", "(config)#"),
-        ("vxlan source-interface vlan " + src_if_vlan_id, "(config)#"),
-        ("vlan database", "(config-vlan)#"),
-        ("vlan " + access_vlan_id, "(config-vlan)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def configure_arp(ip_address, target, port, vlan):
-    command_list = [
-        ("config", "(config)#"),
-        ("mac-address-table static " + target['mac'].replace(':', '-') + " interface ethernet " + port + " vlan " + str(vlan), "(config)#"),
-        ("arp " + target['ip'] + " " + target['mac'].replace(':', '-'), "(config)#"),
-        ("exit", "#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def remove_arp(ip_address, target, vlan):
-    command_list = [
-        ("config", "(config)#"),
-        ("no mac-address-table static " + target['mac'].replace(':', '-') + " vlan " + str(vlan), "(config)#"),
-        ("no arp " + target['ip'], "(config)#"),
-        ("exit", "#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
 def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
     arp_request = simple_arp_packet(
         eth_dst='ff:ff:ff:ff:ff:ff',
@@ -137,26 +78,6 @@ def send_icmp_echo_request(dataplane, sender, target, dst_ip, port):
     for i in range(5):
         dataplane.send(port, str(icmp_echo_request))
         wait_for_seconds(1)
-
-def clear_spine_configuration(ip_address):
-    command_list = [
-        ("config", "(config)#"),
-        ("vlan data", "(config-vlan)#"),
-        ("no vlan 100,200", "(config-vlan)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
-
-def clear_leaf_configuration(ip_address, access_vlan_id):
-    command_list = [
-        ("config", "(config)#"),
-        ("no vxlan source-interface vlan", "(config)#"),
-        ("vlan database", "(config-vlan)#"),
-        ("no vlan " + access_vlan_id, "(config-vlan)#"),
-        ("exit", "(config)#"),
-    ]
-
-    telnet_and_execute(ip_address, command_list)
 
 def telnet_and_execute(host_ip, cli_command_list, debug = False):
     tn = Telnet(host_ip)
@@ -371,62 +292,6 @@ def check_license():
         data = open('../licenseForNCTU.lic', 'rb').read()
         response = requests.post(URL+'v1/license/BinaryFile', data=data, headers=POST_HEADER)
         assert response.status_code == 200, 'Add license fail! ' + response.text
-
-class PacketGenerator():
-    def __init__(self, dataplane):
-        self.device_dataplane = dataplane
-        self.send_tcp_packet_dict = {}
-        self.send_arp_reply_to_dict = {}
-
-    def sender_device(self, sender_device):
-        self.sender_device = sender_device
-
-        return self
-
-    def target_device(self, target_device):
-        self.target_device = target_device
-
-        return self
-
-    def send_tcp_packet(self, port, port_vlan_id, will_be_trigger_device):
-        self.send_tcp_packet_dict['port'] = port
-        self.send_tcp_packet_dict['packet'] = simple_tcp_packet(
-            pktlen=68,
-            dl_vlan_enable=True,
-            vlan_vid=port_vlan_id,
-            eth_dst=will_be_trigger_device['mac'],
-            eth_src=self.sender_device['mac'],
-            ip_dst=self.target_device['ip'],
-            ip_src=self.sender_device['ip']
-        )
-
-        return self
-
-    def send_arp_reply_to(self, will_be_trigger_device, if_ip, port, port_vlan_id):
-        self.send_arp_reply_to_dict['port'] = port
-        self.send_arp_reply_to_dict['packet'] = simple_arp_packet(
-            eth_dst=will_be_trigger_device['mac'],
-            eth_src=self.target_device['mac'],
-            arp_op=2,
-            ip_snd=self.target_device['ip'],
-            ip_tgt=if_ip,
-            hw_snd=self.target_device['mac'],
-            hw_tgt=will_be_trigger_device['mac'],
-        )
-
-        return self
-
-    def run(self):
-        self.device_dataplane.send(
-            self.send_tcp_packet_dict['port'],
-            str(self.send_tcp_packet_dict['packet'])
-        )
-        wait_for_system_process()
-        self.device_dataplane.send(
-            self.send_arp_reply_to_dict['port'],
-            str(self.send_arp_reply_to_dict['packet'])
-        )
-        wait_for_system_process()
 
 class RemotePower():
     def __init__(self, config):
