@@ -74,6 +74,8 @@ leaf0 = {
     'port': conf.get('leaf0', 'port'),
     'protocol': conf.get('leaf0', 'protocol'),
     'mgmtPort': conf.get('leaf0', 'mgmtPort'),
+    'front_port_A': int(conf.get('leaf0', 'front_port_A')),
+    'front_port_B': int(conf.get('leaf0', 'front_port_B')),
 }
 
 leaf1 = {
@@ -87,6 +89,8 @@ leaf1 = {
     'port': conf.get('leaf1', 'port'),
     'protocol': conf.get('leaf1', 'protocol'),
     'mgmtPort': conf.get('leaf1', 'mgmtPort'),
+    'front_port_A': int(conf.get('leaf1', 'front_port_A')),
+    'front_port_B': int(conf.get('leaf1', 'front_port_B')),
 }
 
 # remote power info
@@ -163,7 +167,3 @@ dhcp_server = {
 devices = [spine0, spine1, leaf0, leaf1]
 spines = [spine0, spine1]
 leaves = [leaf0, leaf1]
-
-# test ports mapping front ports
-leaf0['front_port'] = [46, 48]
-leaf1['front_port'] = [46, 48]

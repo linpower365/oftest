@@ -57,80 +57,25 @@ class DHCPRelayTest(base_tests.SimpleDataPlane):
 
     def port_configuration(self):
         cfg.leaf0['portA']  = (
-            Port(cfg.leaf0['front_port'][0])
+            Port(cfg.leaf0['front_port_A'])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
         cfg.leaf0['portB'] = (
-            Port(cfg.leaf0['front_port'][1])
+            Port(cfg.leaf0['front_port_B'])
             .tagged(False)
             .nos(cfg.leaf0['nos'])
         )
         cfg.leaf1['portA'] = (
-            Port(cfg.leaf1['front_port'][0])
+            Port(cfg.leaf1['front_port_A'])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
         )
         cfg.leaf1['portB'] = (
-            Port(cfg.leaf1['front_port'][1])
+            Port(cfg.leaf1['front_port_B'])
             .tagged(False)
             .nos(cfg.leaf1['nos'])
         )
-
-    def get_master_spine(self, sender, target_ip, port, debug=False):
-        arp_request = simple_arp_packet(
-            eth_dst='ff:ff:ff:ff:ff:ff',
-            eth_src=sender['mac'],
-            arp_op=1,
-            ip_snd=sender['ip'],
-            ip_tgt=target_ip,
-            hw_snd=sender['mac'],
-            hw_tgt='00:00:00:00:00:00',
-        )
-
-        for i in range(5):
-            self.dataplane.send(port, str(arp_request))
-            (_, pkt, _) = self.dataplane.poll(port_number=port, timeout=1)
-            if pkt is not None:
-                hex_pkt = pkt.encode('hex')
-            else:
-                continue
-
-            if debug:
-                print 'Received packet from port {}'.format(port)
-                print 'src mac = {}'.format(hex_pkt[0:12])
-                print 'dst mac = {}'.format(hex_pkt[12:24])
-                print 'ether type = {}'.format(hex_pkt[24:28])
-                print 'arp op = {}'.format(hex_pkt[40:44])
-
-            spine = None
-            if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
-                if hex_pkt[12:24] == cfg.spine0['mac'].replace(':', ''):
-                    spine = cfg.spine0
-                elif hex_pkt[12:24] == cfg.spine1['mac'].replace(':', ''):
-                    spine = cfg.spine1
-                else:
-                    assert False, 'Getting spine MAC address fail! '
-
-            if debug:
-                print spine
-
-            wait_for_seconds(1)
-
-        assert spine is not None, 'Get master spine failure!'
-        return spine
-
-    def send_icmp_echo_request(self, sender, target, dst_ip, port):
-        icmp_echo_request = simple_icmp_packet(
-            eth_dst=target['mac'],
-            eth_src=sender['mac'],
-            ip_src=sender['ip'],
-            ip_dst=dst_ip,
-        )
-
-        for i in range(5):
-            self.dataplane.send(port, str(icmp_echo_request))
-            wait_for_seconds(1)
 
     def generate_discover_pkt(self, client):
         dhcp_discover = (

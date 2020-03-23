@@ -50,22 +50,22 @@ class Tenants(base_tests.SimpleDataPlane):
 
     def port_configuration(self):
         cfg.leaf0['portA']  = (
-            Port(cfg.leaf0['front_port'][0])
+            Port(cfg.leaf0['front_port_A'])
             .tagged(True)
             .nos(cfg.leaf0['nos'])
         )
         cfg.leaf0['portB'] = (
-            Port(cfg.leaf0['front_port'][1])
+            Port(cfg.leaf0['front_port_B'])
             .tagged(True)
             .nos(cfg.leaf0['nos'])
         )
         cfg.leaf1['portA'] = (
-            Port(cfg.leaf1['front_port'][0])
+            Port(cfg.leaf1['front_port_A'])
             .tagged(True)
             .nos(cfg.leaf1['nos'])
         )
         cfg.leaf1['portB'] = (
-            Port(cfg.leaf1['front_port'][1])
+            Port(cfg.leaf1['front_port_B'])
             .tagged(True)
             .nos(cfg.leaf1['nos'])
         )
