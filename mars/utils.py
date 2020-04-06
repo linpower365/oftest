@@ -15,6 +15,8 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
+WAIT_TIME_BEFORE_LINKS_INSPECT = 0
+
 def wait_for_system_stable():
     time.sleep(5)
 
@@ -120,9 +122,7 @@ def setup_configuration():
     clear_dhcp_relay()
     enable_ports()
 
-    wait_for_seconds(5)
-
-    check_links()
+    links_inspect(test_config.spines, test_config.leaves, WAIT_TIME_BEFORE_LINKS_INSPECT, False, True)
 
 def config_exists(device):
     response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
@@ -268,19 +268,39 @@ def enable_ports():
             response = requests.post(URL+"v1/devices/{}/portstate/{}".format(port['element'], port['port']), headers=POST_HEADER, json=payload)
             assert response.status_code == 200, 'Enable port fail! '+ response.text
 
+def links_inspect(spines, leaves, second=0, fail_stop=True, debug=False):
+    start_time = time.time()
 
-def check_links():
-    response = requests.get(URL+"v1/links", headers=GET_HEADER)
-    assert(response.status_code == 200)
+    wait_for_seconds(second)
+    keep_test = True
 
-    # check the connection between spine and leaf
-    for spine in test_config.spines:
-        for leaf in test_config.leaves:
-            match = [
-                link for link in response.json()['links']
-                if link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']
-            ]
-            assert match, 'The connection is broken between '+ spine['id'] + ' and ' + leaf['id']
+    while keep_test:
+        connection_success = True
+        response = requests.get(URL+"v1/links", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        # check the connection between spine and leaf
+        for spine in spines:
+            for leaf in leaves:
+                match = [
+                    link for link in response.json()['links']
+                    if link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']
+                ]
+                if fail_stop:
+                    assert match, 'The connection is broken between '+ spine['id'] + ' and ' + leaf['id']
+                else:
+                    if not match:
+                        connection_success = False
+
+        if not fail_stop:
+            if not connection_success:
+                wait_for_seconds(1)
+                continue
+
+        keep_test = False
+        if debug:
+            print("--- %s seconds ---" % (time.time() - start_time))
+
 
 def check_license():
     response = requests.get(URL+"v1/license/v1", headers=GET_HEADER)
