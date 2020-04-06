@@ -16,6 +16,7 @@ GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
 WAIT_TIME_BEFORE_LINKS_INSPECT = 0
+LINKS_INSPECT_RETRY_NUM_MAX = 300
 
 def wait_for_system_stable():
     time.sleep(5)
@@ -122,7 +123,7 @@ def setup_configuration():
     clear_dhcp_relay()
     enable_ports()
 
-    links_inspect(test_config.spines, test_config.leaves, WAIT_TIME_BEFORE_LINKS_INSPECT, False, True)
+    links_inspect(test_config.spines, test_config.leaves, WAIT_TIME_BEFORE_LINKS_INSPECT, False)
 
 def config_exists(device):
     response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
@@ -273,8 +274,9 @@ def links_inspect(spines, leaves, second=0, fail_stop=True, debug=False):
 
     wait_for_seconds(second)
     keep_test = True
+    retry_count = 0
 
-    while keep_test:
+    while keep_test and retry_count < LINKS_INSPECT_RETRY_NUM_MAX:
         connection_success = True
         response = requests.get(URL+"v1/links", headers=GET_HEADER)
         assert(response.status_code == 200)
@@ -295,12 +297,14 @@ def links_inspect(spines, leaves, second=0, fail_stop=True, debug=False):
         if not fail_stop:
             if not connection_success:
                 wait_for_seconds(1)
+                retry_count += 1
                 continue
 
         keep_test = False
         if debug:
             print("--- %s seconds ---" % (time.time() - start_time))
 
+    assert retry_count < LINKS_INSPECT_RETRY_NUM_MAX, 'Link inspect takes too much time'
 
 def check_license():
     response = requests.get(URL+"v1/license/v1", headers=GET_HEADER)
