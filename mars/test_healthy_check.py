@@ -31,7 +31,7 @@ GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
 
-class ControllerCpuTest(base_tests.SimpleDataPlane):
+class ControllerCpu(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Controller CPU Threshold RestAPI
         - GET /healthycheck/v1/controller/cpu/threshold
@@ -85,7 +85,7 @@ class ControllerCpuTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Controller CPU threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class ControllerRamTest(base_tests.SimpleDataPlane):
+class ControllerRam(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Controller RAM Threshold RestAPI
         - GET /healthycheck/v1/controller/ram/threshold
@@ -133,7 +133,7 @@ class ControllerRamTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Controller RAM threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class ControllerDiskTest(base_tests.SimpleDataPlane):
+class ControllerDisk(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Controller Disk Threshold RestAPI
         - GET /healthycheck/v1/controller/disk/threshold
@@ -180,7 +180,7 @@ class ControllerDiskTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Controller Disk threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class ControllerPortTest(base_tests.SimpleDataPlane):
+class ControllerPort(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Controller Port Threshold RestAPI
         - GET /healthycheck/v1/controller/port/threshold
@@ -234,7 +234,7 @@ class ControllerPortTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Controller Port threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class SwitchCpuTest(base_tests.SimpleDataPlane):
+class SwitchCpu(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Switch CPU Threshold RestAPI
         - GET /healthycheck/v1/switch/cpu/threshold
@@ -281,7 +281,7 @@ class SwitchCpuTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Switch CPU threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class SwitchRamTest(base_tests.SimpleDataPlane):
+class SwitchRam(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Switch RAM Threshold RestAPI
         - GET /healthycheck/v1/switch/ram/threshold
@@ -328,7 +328,7 @@ class SwitchRamTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Switch RAM threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class SwitchDiskTest(base_tests.SimpleDataPlane):
+class SwitchDisk(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Switch Disk Threshold RestAPI
         - GET /healthycheck/v1/switch/disk/threshold
@@ -375,7 +375,7 @@ class SwitchDiskTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Switch Disk threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class SwitchPortTest(base_tests.SimpleDataPlane):
+class SwitchPort(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Switch Port Threshold RestAPI
         - GET /healthycheck/v1/switch/port/threshold
@@ -429,20 +429,20 @@ class SwitchPortTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Switch Port threshold by rule_name = '+rule_name+' FAIL!'
 
 
-class AllThresholdTest(base_tests.SimpleDataPlane):
+class AllThreshold(base_tests.SimpleDataPlane):
     """
     Test HealthyCheck Get all threshold
         - GET /healthycheck/v1/threshold
     """
 
     def runTest(self):
-        
+
         # Query all threshold
         response = requests.get(URL+'healthycheck/v1/threshold', headers=GET_HEADER)
         assert response.status_code == 200, 'Query all threshold FAIL!'
 
 
-class SensorsGetTest(base_tests.SimpleDataPlane):
+class SensorsGetter(base_tests.SimpleDataPlane):
     """
     Test Device Sensors RestAPI
         - GET /sensors/<device_id>/temp
@@ -451,7 +451,7 @@ class SensorsGetTest(base_tests.SimpleDataPlane):
     """
 
     def runTest(self):
-        
+
         # Get a device_id
         response = requests.get(URL+"v1/devices", headers=GET_HEADER)
         assert response.status_code == 200, 'Query devices is FAIL!'

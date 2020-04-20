@@ -17,7 +17,7 @@ GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
 
-class AccountGetTest(base_tests.SimpleDataPlane):
+class Getter(base_tests.SimpleDataPlane):
     """
     Test useraccount GET method
         - /useraccount/v1
@@ -49,7 +49,7 @@ class AccountGetTest(base_tests.SimpleDataPlane):
         assert(response.json()['user_name'] == test_config.ADMIN_USERNAME)
 
 
-class AccountNewUserTest(base_tests.SimpleDataPlane):
+class AddAndDeleteUser(base_tests.SimpleDataPlane):
     """
     Test add a new user and delete it
         POST /useraccount/v1
@@ -85,7 +85,7 @@ class AccountNewUserTest(base_tests.SimpleDataPlane):
         assert(username not in response.json()['users'])
 
 
-class NotResultTest(base_tests.SimpleDataPlane):
+class EmptyQuery(base_tests.SimpleDataPlane):
   """
   Test query empty data or wrong input
   """

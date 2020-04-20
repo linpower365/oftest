@@ -5,17 +5,20 @@ Provided common utils for testing
 import time
 import base64
 import requests
-import config as test_config
+import config as cfg
 from oftest.testutils import *
 from telnetlib import Telnet
+from scapy.layers.l2 import *
+from scapy.layers.inet import *
+from scapy.layers.dhcp import *
 
-URL = test_config.API_BASE_URL
-LOGIN = test_config.LOGIN
+URL = cfg.API_BASE_URL
+LOGIN = cfg.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+DELETE_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
 
-WAIT_TIME_BEFORE_LINKS_INSPECT = 0
 LINKS_INSPECT_RETRY_NUM_MAX = 300
 
 def wait_for_system_stable():
@@ -55,10 +58,10 @@ def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
                     print 'arp op = {}'.format(hex_pkt[40:44])
 
                 if hex_pkt is not None and hex_pkt[24:28] == '0806' and hex_pkt[40:44] == '0002':
-                    if hex_pkt[12:24].lower() == test_config.spine0['mac'].replace(':', '').lower():
-                        spine = test_config.spine0
-                    elif hex_pkt[12:24].lower() == test_config.spine1['mac'].replace(':', '').lower():
-                        spine = test_config.spine1
+                    if hex_pkt[12:24].lower() == cfg.spine0['mac'].replace(':', '').lower():
+                        spine = cfg.spine0
+                    elif hex_pkt[12:24].lower() == cfg.spine1['mac'].replace(':', '').lower():
+                        spine = cfg.spine1
                     else:
                         assert False, 'Getting spine MAC address fail! '
 
@@ -112,7 +115,7 @@ def expect(tn, word):
 def setup_configuration():
     check_license()
 
-    for device in test_config.devices:
+    for device in cfg.devices:
         if config_exists(device) == False:
             config_add(device)
 
@@ -123,7 +126,29 @@ def setup_configuration():
     clear_dhcp_relay()
     enable_ports()
 
-    links_inspect(test_config.spines, test_config.leaves, WAIT_TIME_BEFORE_LINKS_INSPECT, False)
+    links_inspect(cfg.spines, cfg.leaves)
+
+def port_configuration():
+    cfg.leaf0['portA']  = (
+        Port(cfg.leaf0['front_port_A'])
+        .tagged(False)
+        .nos(cfg.leaf0['nos'])
+    )
+    cfg.leaf0['portB'] = (
+        Port(cfg.leaf0['front_port_B'])
+        .tagged(False)
+        .nos(cfg.leaf0['nos'])
+    )
+    cfg.leaf1['portA'] = (
+        Port(cfg.leaf1['front_port_A'])
+        .tagged(False)
+        .nos(cfg.leaf1['nos'])
+    )
+    cfg.leaf1['portB'] = (
+        Port(cfg.leaf1['front_port_B'])
+        .tagged(False)
+        .nos(cfg.leaf1['nos'])
+    )
 
 def config_exists(device):
     response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
@@ -171,9 +196,12 @@ def config_add(device):
             "rack_id": "1"
         }
 
-
     response = requests.post(URL+'v1/devices', json=payload, headers=POST_HEADER)
     assert response.status_code == 200, 'Add device fail! ' + response.text
+
+def config_remove(device):
+    response = requests.delete(URL+'v1/devices/{}'.format(device['id']), headers=DELETE_HEADER)
+    assert response.status_code == 200, 'Delete device fail! ' + response.text
 
 def clear_tenant():
     response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
@@ -241,7 +269,7 @@ def clear_span():
 
     if 'sessions' in response.json():
         for session in response.json()['sessions']:
-            response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
+            response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=DELETE_HEADER)
             assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
 
 def clear_dhcp_relay():
@@ -269,7 +297,7 @@ def enable_ports():
             response = requests.post(URL+"v1/devices/{}/portstate/{}".format(port['element'], port['port']), headers=POST_HEADER, json=payload)
             assert response.status_code == 200, 'Enable port fail! '+ response.text
 
-def links_inspect(spines, leaves, second=0, fail_stop=True, debug=False):
+def links_inspect(spines, leaves, second=0, fail_stop=False, debug=False):
     start_time = time.time()
 
     wait_for_seconds(second)
@@ -277,32 +305,40 @@ def links_inspect(spines, leaves, second=0, fail_stop=True, debug=False):
     retry_count = 0
 
     while keep_test and retry_count < LINKS_INSPECT_RETRY_NUM_MAX:
-        connection_success = True
         response = requests.get(URL+"v1/links", headers=GET_HEADER)
         assert(response.status_code == 200)
+
+        # bidirection link count
+        total_link_count = len(spines)*len(leaves)*2
+
+        total_link = []
 
         # check the connection between spine and leaf
         for spine in spines:
             for leaf in leaves:
                 match = [
                     link for link in response.json()['links']
-                    if link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']
+                    if (link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']) or
+                       (link['dst']['device'] == spine['id'] and link['src']['device'] == leaf['id'])
                 ]
+
                 if fail_stop:
                     assert match, 'The connection is broken between '+ spine['id'] + ' and ' + leaf['id']
                 else:
-                    if not match:
-                        connection_success = False
+                    while match:
+                        total_link.append(match.pop())
 
         if not fail_stop:
-            if not connection_success:
+            if len(total_link) != total_link_count:
                 wait_for_seconds(1)
                 retry_count += 1
                 continue
 
-        keep_test = False
         if debug:
+            print 'len(total_link) = {}'.format(len(total_link))
             print("--- %s seconds ---" % (time.time() - start_time))
+
+        keep_test = False
 
     assert retry_count < LINKS_INSPECT_RETRY_NUM_MAX, 'Link inspect takes too much time'
 
@@ -336,11 +372,11 @@ class RemotePower():
         self._url = "http://" + config['ip'] + "/"
 
     def On(self):
-        response = requests.post(self._url+"on.cgi?led=" + "".join(self._led), headers=self._post_header)
+        response = requests.post(self._url+"ons.cgi?led=" + "".join(self._led), headers=self._post_header)
         assert response.status_code == 200, 'Turn on remote power fail! '+ response.text
 
     def Off(self):
-        response = requests.post(self._url+"off.cgi?led=" + "".join(self._led), headers=self._post_header)
+        response = requests.post(self._url+"offs.cgi?led=" + "".join(self._led), headers=self._post_header)
         assert response.status_code == 200, 'Turn off remote power fail! '+ response.text
 
     def OffOn(self):
@@ -576,6 +612,18 @@ class UplinkSegment():
     def debug(self):
         print UplinkSegment
 
+class Device():
+
+    def __init__(self, id):
+        self._id = id
+
+    @property
+    def available(self):
+        response = requests.get(URL+'v1/devices/{}'.format(self._id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get device fail! '+ response.text
+
+        return response.json()['available']
+
 class DevicePort():
 
     def __init__(self, port_id, device_id):
@@ -627,6 +675,7 @@ class Port():
             return "{}/{}".format(port_str, tagged_str)
         else:
             return "{}/{}".format(self._port_id, tagged_str)
+
     @property
     def number(self):
         if self._nos == 'aos':
@@ -930,4 +979,114 @@ class DHCPRelay():
                     )
                     assert response.status_code == 200, 'Destroy DHCP relay server fail '+ response.text
 
+class DHCP_PKT():
+    def __init__(self):
+        pass
 
+    def generate_discover_pkt(self, client):
+        dhcp_discover = (
+            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff')/
+            IP(src='0.0.0.0', dst='255.255.255.255')/
+            UDP(dport=67, sport=68)/
+            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), xid=1234, flags=0x8000)/
+            DHCP(options=[('message-type', 'discover'), 'end'])
+        )
+
+        return dhcp_discover
+
+    def generate_expected_discover_pkt(self, spine, dhcp_server, client, s1_vlan_ip, s2_vlan_ip):
+        expected_dhcp_discover = (
+            Ether(src=spine['mac'], dst=dhcp_server['mac'])/
+            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02)/
+            UDP(dport=67, sport=67)/
+            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, flags=0x8000, hops=1)/
+            DHCP(options=[('message-type', 'discover'), 'end'])
+        )
+
+        return expected_dhcp_discover
+
+    def generate_offer_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
+        dhcp_offer = (
+            Ether(src=dhcp_server['mac'], dst=spine['mac'])/
+            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02)/
+            UDP(dport=67, sport=67)/
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
+            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+        )
+
+        return dhcp_offer
+
+    def generate_expected_offer_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
+        expected_dhcp_offer = (
+            Ether(src=spine['mac'], dst=client['mac'])/
+            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02)/
+            UDP(dport=68, sport=67)/
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
+            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+        )
+
+        return expected_dhcp_offer
+
+    def generate_request_pkt(self, dhcp_server, client, allocated_ip):
+        dhcp_request = (
+            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff')/
+            IP(src='0.0.0.0', dst='255.255.255.255')/
+            UDP(dport=67, sport=68)/
+            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), xid=1234)/
+            DHCP(options=[('message-type', 'request'), ('server_id', dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
+        )
+
+        return dhcp_request
+
+    def generate_expected_request_pkt(self, spine, dhcp_server, client, s1_vlan_ip, s2_vlan_ip, allocated_ip):
+        expected_dhcp_request = (
+            Ether(src=spine['mac'], dst=dhcp_server['mac'])/
+            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02)/
+            UDP(dport=67, sport=67)/
+            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, hops=1)/
+            DHCP(options=[('message-type', 'request'), ('server_id', dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
+        )
+
+        return expected_dhcp_request
+
+    def generate_ack_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
+        dhcp_ack = (
+            Ether(src=dhcp_server['mac'], dst=spine['mac'])/
+            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02)/
+            UDP(dport=67, sport=67)/
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
+            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+        )
+
+        return dhcp_ack
+
+    def generate_expected_ack_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
+        expected_dhcp_ack = (
+            Ether(src=spine['mac'], dst=client['mac'])/
+            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02)/
+            UDP(dport=68, sport=67)/
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
+            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+        )
+
+        return expected_dhcp_ack
+
+class Configuration():
+    def __init__(self):
+        pass
+
+    def get_current_json(self):
+        response = requests.get(URL+"v1/network/configuration", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        return response.json()
+
+    def get_factory_default_json(self):
+        response = requests.get(URL+"v1/network/configuration/files/Factory_Default_Config.cfg", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        return response.json()
+
+    def save_as_boot_default_config(self, json_content):
+        response = requests.post(URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, headers=POST_HEADER)
+        assert response.status_code == 204, 'save as boot default config fail! '+ response.text

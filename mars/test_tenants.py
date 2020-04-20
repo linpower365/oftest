@@ -43,34 +43,17 @@ class Tenants(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
-        self.port_configuration()
+        port_configuration()
+
+        cfg.leaf0['portA'].tagged(True)
+        cfg.leaf0['portB'].tagged(True)
+        cfg.leaf1['portA'].tagged(True)
+        cfg.leaf1['portB'].tagged(True)
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
-    def port_configuration(self):
-        cfg.leaf0['portA']  = (
-            Port(cfg.leaf0['front_port_A'])
-            .tagged(True)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf0['portB'] = (
-            Port(cfg.leaf0['front_port_B'])
-            .tagged(True)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf1['portA'] = (
-            Port(cfg.leaf1['front_port_A'])
-            .tagged(True)
-            .nos(cfg.leaf1['nos'])
-        )
-        cfg.leaf1['portB'] = (
-            Port(cfg.leaf1['front_port_B'])
-            .tagged(True)
-            .nos(cfg.leaf1['nos'])
-        )
-
-class TenantsGetTest(Tenants):
+class Getter(Tenants):
     """
     Test tenant GET method
         - /v1/tenants/v1
@@ -80,7 +63,7 @@ class TenantsGetTest(Tenants):
         response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
 
-class TenantsAddNewTest(Tenants):
+class AddAndDelete(Tenants):
     """
     Test adding a new tenant and delete it
       - POST v1/tenants/v1
@@ -119,7 +102,7 @@ class TenantsAddNewTest(Tenants):
         assert(not_exist)
 
 
-class SegmentTest(Tenants):
+class Segment(Tenants):
     """
     Test Tenant Segment RestAPI
     - POST v1/tenants/v1/<tenant_name>/segments
@@ -186,7 +169,7 @@ class SegmentTest(Tenants):
         assert(response.status_code == 200)
 
 @disabled
-class LargeScaleTest(Tenants):
+class LargeScaleSegment(Tenants):
     """
     - Test 4K tenant each 1 segment
     - Test 1 tenant and 4k segment
@@ -252,7 +235,7 @@ class LargeScaleTest(Tenants):
         assert response.status_code == 200, 'Delete tenant FAIL!' + response.text
 
 
-class SegmentVlanTypeConnectionTest(Tenants):
+class SegmentConnectionWithVlanType(Tenants):
     """
     Test segment vlan type connection.
     """
@@ -314,7 +297,7 @@ class SegmentVlanTypeConnectionTest(Tenants):
         t1.destroy()
 
 
-class SegmentVlanTypeRecoveryTest(Tenants):
+class RecoveryWithVlanType(Tenants):
     '''
     Test segment vlan type recovery feature.
     '''
@@ -412,7 +395,7 @@ class SegmentVlanTypeRecoveryTest(Tenants):
 
         wait_for_system_stable()
 @disabled
-class SegmentVxlanTypeConnectionTest(Tenants):
+class SegmentConnectionWithVxlanType(Tenants):
     """
     Test segment vxlan type connection.
     """

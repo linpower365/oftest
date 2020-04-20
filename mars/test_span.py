@@ -35,45 +35,17 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
-URL = cfg.API_BASE_URL
-LOGIN = cfg.LOGIN
-AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
-
 class SPANTest(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
-        self.port_configuration()
+        port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
-    def port_configuration(self):
-        cfg.leaf0['portA']  = (
-            Port(cfg.leaf0['front_port_A'])
-            .tagged(False)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf0['portB'] = (
-            Port(cfg.leaf0['front_port_B'])
-            .tagged(False)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf1['portA'] = (
-            Port(cfg.leaf1['front_port_A'])
-            .tagged(False)
-            .nos(cfg.leaf1['nos'])
-        )
-        cfg.leaf1['portB'] = (
-            Port(cfg.leaf1['front_port_B'])
-            .tagged(False)
-            .nos(cfg.leaf1['nos'])
-        )
-
-class SetAndGetTest(SPANTest):
+class SetterAndGetter(SPANTest):
     """
     Test set and get SPAN rest API
     """
@@ -100,7 +72,7 @@ class SetAndGetTest(SPANTest):
 
         span.destroy()
 
-class NoSPANConfigTest(SPANTest):
+class NullSPANConfig(SPANTest):
     """
     Test situation without SAPN config
     """
@@ -128,7 +100,7 @@ class NoSPANConfigTest(SPANTest):
         verify_no_packet(self, str(pkt_from_src), ports[3])
 
 
-class SameLeafDescendingDirectionTest(SPANTest):
+class RxInSameLeaf(SPANTest):
     """
     Test SPAN descending direction in same leaf
     """
@@ -175,7 +147,7 @@ class SameLeafDescendingDirectionTest(SPANTest):
 
             wait_for_system_process()
 
-class SameLeafUplinkDirectionTest(SPANTest):
+class TxInSameLeaf(SPANTest):
     """
     Test SPAN uplink direction in same leaf
     """
@@ -243,7 +215,7 @@ class SameLeafUplinkDirectionTest(SPANTest):
 
         t1.destroy()
 
-class DifferentDescendingDirectionLeafTest(SPANTest):
+class RxInDifferentLeaf(SPANTest):
     """
     Test SPAN descending direction in different leaf
     """
@@ -292,7 +264,7 @@ class DifferentDescendingDirectionLeafTest(SPANTest):
             wait_for_system_process()
 
 
-class DifferentLeafUplinkDirectionTest(SPANTest):
+class TxInDifferentLeaf(SPANTest):
     """
     Test SPAN uplink direction in different leaf
     """

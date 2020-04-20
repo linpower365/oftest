@@ -47,34 +47,12 @@ class TenantLogicalRouter(base_tests.SimpleDataPlane):
         base_tests.SimpleDataPlane.setUp(self)
 
         setup_configuration()
-        self.port_configuration()
+        port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
-    def port_configuration(self):
-        cfg.leaf0['portA']  = (
-            Port(cfg.leaf0['front_port_A'])
-            .tagged(False)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf0['portB'] = (
-            Port(cfg.leaf0['front_port_B'])
-            .tagged(False)
-            .nos(cfg.leaf0['nos'])
-        )
-        cfg.leaf1['portA'] = (
-            Port(cfg.leaf1['front_port_A'])
-            .tagged(False)
-            .nos(cfg.leaf1['nos'])
-        )
-        cfg.leaf1['portB'] = (
-            Port(cfg.leaf1['front_port_B'])
-            .tagged(False)
-            .nos(cfg.leaf1['nos'])
-        )
-
-class TenantLogicalRouterGetTest(TenantLogicalRouter):
+class Getter(TenantLogicalRouter):
     """
     Test tenantlogicalrouter GET method
         - /tenantlogicalrouter/v1
@@ -85,7 +63,7 @@ class TenantLogicalRouterGetTest(TenantLogicalRouter):
         assert(response.status_code == 200)
 
 
-class TenantLogicalRouterAddNewTest(TenantLogicalRouter):
+class AddAndDelete(TenantLogicalRouter):
     """
     Test tenantlogicalrouter add a new one and delete it
         - POST v1/tenants/v1
@@ -198,7 +176,7 @@ class TenantLogicalRouterAddNewTest(TenantLogicalRouter):
         assert(removed)
 
 
-class TenantLogicalRouterNotExistTest(TenantLogicalRouter):
+class NotExist(TenantLogicalRouter):
     """
     Test not exist data
     """
@@ -270,7 +248,7 @@ class OneSegmentWithoutIPaddressInDifferentLeaf(TenantLogicalRouter):
         self.dataplane.send(ports[0], pkt_from_p0_to_p2)
         verify_packet(self, pkt_from_p0_to_p2, ports[2])
 
-class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
+class TwoSegmentsWithSameTenantInSameLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and same tenent
     '''
@@ -340,7 +318,7 @@ class TwoSegmentsInSameLeafSameTenant(TenantLogicalRouter):
             # clear queue packet
             self.dataplane.flush()
 
-class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
+class TwoSegmentsWithSameTenentInDifferentLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in different leaf and same tenent
     '''
@@ -410,7 +388,7 @@ class TwoSegmentsInDifferentLeafSameTenent(TenantLogicalRouter):
             # clear queue packet
             self.dataplane.flush()
 
-class TwoSegmentsInSameLeafDifferentTenantWithoutSystemTenant(TenantLogicalRouter):
+class TwoSegmentsForDifferentTenantWithoutSystemTenantInSameLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and different tenent.
     Without system tenant configuration.
@@ -465,7 +443,7 @@ class TwoSegmentsInSameLeafDifferentTenantWithoutSystemTenant(TenantLogicalRoute
         t1.destroy()
         t2.destroy()
 
-class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
+class TwoSegmentsForDifferentTenantWithSystemTenantInSameLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and different tenent.
     With system tenant configuration.
@@ -552,7 +530,7 @@ class TwoSegmentsInSameLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
         lrouter_system.destroy()
         system_tenant.destroy()
 
-class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogicalRouter):
+class TwoSegmentsForDifferentTenantWithoutSystemTenantInDifferentLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and different tenent.
     Without system tenant configuration.
@@ -625,7 +603,7 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithoutSystemTenant(TenantLogical
         t1.destroy()
         t2.destroy()
 
-class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRouter):
+class TwoSegmentsForDifferentTenantWithSystemTenantInDifferentLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in different leaf and different tenent.
     With system tenant configuration.
@@ -713,7 +691,7 @@ class TwoSegmentsInDifferentLeafDifferentTenantWithSystemTenant(TenantLogicalRou
         t2.destroy()
         system_tenant.destroy()
 
-class ExternalRouterTest(TenantLogicalRouter):
+class StaticRoute(TenantLogicalRouter):
     '''
     Test logical router in external router environment
     '''
@@ -782,7 +760,7 @@ class ExternalRouterTest(TenantLogicalRouter):
 
         wait_for_system_process()
 
-class PolicyRouteInSameLeafTest(TenantLogicalRouter):
+class PolicyRouteInSameLeaf(TenantLogicalRouter):
     '''
     Test logical router with policy router configuration in same leaf
     '''
@@ -829,10 +807,10 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
             .build()
         )
 
+        wait_for_system_stable()
+
         master_spine = get_master_spine(self.dataplane, cfg.external_router0, s1_ip, ports[1])
         send_icmp_echo_request(self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
-
-        wait_for_system_stable()
 
         for dst_ip in [cfg.host1['ip'], '10.10.10.20']:
             pkt_from_p0_to_p1 = simple_tcp_packet(
@@ -868,7 +846,7 @@ class PolicyRouteInSameLeafTest(TenantLogicalRouter):
         t1.destroy()
 
 
-class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
+class PolicyRouteInDifferentLeaf(TenantLogicalRouter):
     '''
     Test logical router with policy router configuration in different leaf
     '''
@@ -916,10 +894,11 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
             .build()
         )
 
+        wait_for_system_stable()
+
         master_spine = get_master_spine(self.dataplane, cfg.external_router1, s1_ip, ports[2])
         send_icmp_echo_request(self.dataplane, cfg.external_router1, master_spine, s1_ip, ports[2])
         self.dataplane.flush()
-        wait_for_system_stable()
 
         for dst_ip in [cfg.host2['ip'], '10.10.10.50']:
             pkt_from_p0_to_p2 = simple_udp_packet(
@@ -955,7 +934,7 @@ class PolicyRouteInDifferentLeafTest(TenantLogicalRouter):
         t1.destroy()
 
 
-class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
+class TwoSegmentsMisEnvironment(TenantLogicalRouter):
     """
     Test MIS environment's connection with 2 segments
     """
@@ -1047,7 +1026,7 @@ class MisEnvironmentWithTwoSegmentsTest(TenantLogicalRouter):
         t1.destroy()
         lrouter.destroy()
 
-class MisEnvironmentWithThreeSegmentsTest(TenantLogicalRouter):
+class ThreeSegmentsMisEnvironment(TenantLogicalRouter):
     """
     Test MIS environment's connection with 3 segments
     """

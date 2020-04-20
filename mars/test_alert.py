@@ -16,7 +16,7 @@ GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
 
-class HistoryTest(base_tests.SimpleDataPlane):
+class History(base_tests.SimpleDataPlane):
     """
     Test History RestAPI
         - GET /alert/v1/history/list
@@ -32,7 +32,7 @@ class HistoryTest(base_tests.SimpleDataPlane):
         pass
 
     def runTest(self):
-        
+
         # Get all history
         response = requests.get(URL+'alert/v1/history/list', headers=GET_HEADER)
         assert response.status_code == 200, 'Query all history FAIL!'
@@ -61,7 +61,7 @@ class HistoryTest(base_tests.SimpleDataPlane):
         assert len(response.json()['history']) == 0, 'Delete all history FAIL!'
 
 
-class BasicConfigTest(base_tests.SimpleDataPlane):
+class BasicConfig(base_tests.SimpleDataPlane):
     """
     Test Basic Config RestAPI
         - GET /alert/v1/basicconfig
@@ -112,7 +112,7 @@ class BasicConfigTest(base_tests.SimpleDataPlane):
         assert response.json() == {}, 'Delete Basic Config FAIL!'
 
 
-class GroupReceiverTest(base_tests.SimpleDataPlane):
+class GroupReceiver(base_tests.SimpleDataPlane):
     """
     Test Group Receiver RestAPI
         - GET /alert/v1/group/receiver/all

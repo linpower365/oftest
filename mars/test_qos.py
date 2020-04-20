@@ -17,7 +17,7 @@ GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
 
-class QosCosTest(base_tests.SimpleDataPlane):
+class CoS(base_tests.SimpleDataPlane):
     """
     Test Qos Cos API.
         - GET qos/cos/v1
@@ -59,7 +59,7 @@ class QosCosTest(base_tests.SimpleDataPlane):
         assert (3 in dscp) and (5 in dscp) and (7 in dscp), 'Update cos config on queue '+qno+ ' FAIL'
 
 
-class QosEcnTest(base_tests.SimpleDataPlane):
+class ECN(base_tests.SimpleDataPlane):
     """
     Test Qos ECN API.
         - GET qos/ecn/v1
@@ -108,7 +108,7 @@ class QosEcnTest(base_tests.SimpleDataPlane):
         assert removed, 'Delete ECN for queue '+qno+ ' FAIL'
 
 
-class QosPfcTest(base_tests.SimpleDataPlane):
+class PFC(base_tests.SimpleDataPlane):
     """
     Test Qos PFC API.
         - GET qos/pfc/v1/<device_id>
@@ -122,7 +122,7 @@ class QosPfcTest(base_tests.SimpleDataPlane):
         assert response.status_code == 200, 'Query devices FAIL'
         assert len(response.json()['devices']) > 0, 'Test PFC RestAPI need at least one device'
         device_id = response.json()['devices'][0]['id']
-        
+
         # Query a PFC data on a device
         response = requests.get(URL+'qos/pfc/v1/'+device_id, headers=GET_HEADER)
         assert response.status_code == 200, 'Query PFC data on a device: '+device_id+' FAIL'
@@ -162,11 +162,11 @@ class QosPfcTest(base_tests.SimpleDataPlane):
         assert removed, 'Delete PFC on device_id:'+device_id+' FAIL'
 
 
-class QosSchedulerTest(base_tests.SimpleDataPlane):
+class Scheduler(base_tests.SimpleDataPlane):
     """
     Test Qos Scheduler API.
         - GET qos/scheduler/v1
-        - PUT qos/scheduler/v1 
+        - PUT qos/scheduler/v1
     """
     def runTest(self):
 
@@ -194,7 +194,7 @@ class QosSchedulerTest(base_tests.SimpleDataPlane):
                 break
 
 
-class QosRatelimitTest(base_tests.SimpleDataPlane):
+class Ratelimit(base_tests.SimpleDataPlane):
     """
     Test Qos Ratelimit API.
         - GET qos/ratelimit/v1
