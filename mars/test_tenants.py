@@ -247,8 +247,8 @@ class SegmentConnectionWithVlanType(Tenants):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name, cfg.leaf0['portB'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name, cfg.leaf0['portB'].name]))
+            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
             .build()
         )
 
@@ -309,8 +309,8 @@ class RecoveryWithVlanType(Tenants):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name, cfg.leaf0['portB'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name, cfg.leaf0['portB'].name]))
+            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
             .build()
         )
 

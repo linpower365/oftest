@@ -160,8 +160,8 @@ class TxInSameLeaf(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['portB'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portB'].name]))
+            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portB'].name]))
             .build()
         )
 
@@ -277,7 +277,7 @@ class TxInDifferentLeaf(SPANTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name, cfg.leaf1['portB'].name]))
             .build()
         )
 

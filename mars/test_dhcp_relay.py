@@ -98,9 +98,9 @@ class TransmitPacket(DHCPRelayTest):
             t1 = (
                 Tenant('t1')
                 .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-                .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+                .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
                 .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-                .segment_member('s2', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
+                .segment_member(SegmentMember('s2', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name, cfg.leaf1['portB'].name]))
                 .build()
             )
 
@@ -176,9 +176,9 @@ class MultipleServer(DHCPRelayTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s2', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name, cfg.leaf1['portB'].name]))
             .build()
         )
 
@@ -254,18 +254,18 @@ class CrossSystemTenant(DHCPRelayTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf0['portB'].name], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s2', cfg.leaf0['id']).ports([cfg.leaf0['portB'].name]))
             .build()
         )
 
         t2 = (
             Tenant('t2')
             .segment('s3', 'vlan', [s3_vlan_ip], s3_vlan_id)
-            .segment_member('s3', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s3', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
             .segment('s4', 'vlan', [s4_vlan_ip], s4_vlan_id)
-            .segment_member('s4', [cfg.leaf1['portB'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s4', cfg.leaf1['id']).ports([cfg.leaf1['portB'].name]))
             .build()
         )
 
@@ -363,9 +363,9 @@ class PhysicalServer(DHCPRelayTest):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', ['45/untag'], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', ['45/untag', '47/untag'], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s2', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name, cfg.leaf1['portB'].name]))
             .build()
         )
 

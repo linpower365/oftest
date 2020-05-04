@@ -383,6 +383,29 @@ class RemotePower():
         response = requests.post(self._url+"offon.cgi?led=" + "".join(self._led), headers=self._post_header)
         assert response.status_code == 200, 'Turn off and on remote power fail! '+ response.text
 
+class SegmentMember():
+    def __init__(self, segment_name, device_id):
+        self._segment_name = segment_name
+        self._devices_id = device_id
+        self._ports = []
+        self._logical_ports = []
+        self._mac_based_vlan = []
+
+    def ports(self, member_list):
+        self._ports = member_list
+
+        return self
+
+    def logical_ports(self, member_list):
+        self._logical_ports = member_list
+
+        return self
+
+    def mac_based_vlan(self, member_list):
+        self._mac_based_vlan = member_list
+
+        return self
+
 class Tenant():
     def __init__(self, name, type = 'Normal'):
         self.name = name
@@ -401,15 +424,13 @@ class Tenant():
 
         return self
 
-    def segment_member(self, segment_name = None, members = None, device_id = None):
+    def segment_member(self, members):
         for segment in self.segments:
-            if segment['name'] == segment_name:
-                members_info = {'ports': members, 'device_id': device_id}
-
+            if segment['name'] == members._segment_name:
                 if not segment['members_list']:
-                    segment['members_list'] = [members_info]
+                    segment['members_list'] = [members]
                 else:
-                    segment['members_list'].append(members_info)
+                    segment['members_list'].append(members)
 
         return self
 
@@ -479,9 +500,12 @@ class Tenant():
         if segment['members_list'] is not None:
             for member in segment['members_list']:
                 payload = {
-                    "ports" : member['ports'],
+                    "ports" : member._ports,
+                    "logical_ports" : member._logical_ports,
+                    "mac_based_vlans" : member._mac_based_vlan
                 }
-                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member['device_id']),
+
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member._devices_id),
                     json=payload, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add segment member fail '+ response.text
 

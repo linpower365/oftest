@@ -76,8 +76,8 @@ class TenantLogicalRouterConfig1(DisconnectionDeviceException):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
-            .segment_member('s1', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
+            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
             .build()
         )
 
@@ -110,9 +110,9 @@ class TenantLogicalRouterConfig2(DisconnectionDeviceException):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', s1_ip, s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
             .segment('s2', 'vlan', s2_ip, s2_vlan_id)
-            .segment_member('s2', [cfg.leaf1['portA'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s2', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
             .build()
         )
 
@@ -178,9 +178,9 @@ class DHCPRelayConfig(DisconnectionDeviceException):
         t1 = (
             Tenant('t1')
             .segment('s1', 'vlan', [s1_vlan_ip], s1_vlan_id)
-            .segment_member('s1', [cfg.leaf0['portA'].name], cfg.leaf0['id'])
+            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name]))
             .segment('s2', 'vlan', [s2_vlan_ip], s2_vlan_id)
-            .segment_member('s2', [cfg.leaf1['portA'].name, cfg.leaf1['portB'].name], cfg.leaf1['id'])
+            .segment_member(SegmentMember('s2', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name, cfg.leaf1['portB'].name]))
             .build()
         )
 
