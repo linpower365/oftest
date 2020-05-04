@@ -36,91 +36,47 @@ conf.read('./mars/ini/' + INI_FILE)
 REMOTE_POWER_USERNAME = 'snmp'
 REMOTE_POWER_PASSWORD = '1234'
 
+def create_device(conf, device_name):
+    device = {
+        'id': conf.get(device_name, 'id'),
+        'name': conf.get(device_name, 'name'),
+        'type': conf.get(device_name, 'type'),
+        'mgmtIpAddress': conf.get(device_name, 'mgmtIpAddress'),
+        'mac': conf.get(device_name, 'mac'),
+        'nos': conf.get(device_name, 'nos'),
+        'mfr': conf.get(device_name, 'mfr'),
+        'port': conf.get(device_name, 'port'),
+        'protocol': conf.get(device_name, 'protocol'),
+        'mgmtPort': conf.get(device_name, 'mgmtPort'),
+        'front_port_A': int(conf.get(device_name, 'front_port_A')),
+        'front_port_B': int(conf.get(device_name, 'front_port_B')),
+    }
+
+    return device
+
+def create_remote_power(conf, rp_name):
+    remote_power = {
+        'username': REMOTE_POWER_USERNAME,
+        'password': REMOTE_POWER_PASSWORD,
+        'ip': conf.get(rp_name, 'remotePowerIp'),
+        'plug_id': conf.get(rp_name, 'remotePowerPlugId'),
+    }
+
+    return remote_power
+
+
 # devices under test
-spine0 = {
-    'id': conf.get('spine0', 'id'),
-    'name': conf.get('spine0', 'name'),
-    'type': conf.get('spine0', 'type'),
-    'mgmtIpAddress': conf.get('spine0', 'mgmtIpAddress'),
-    'mac': conf.get('spine0', 'mac'),
-    'nos': conf.get('spine0', 'nos'),
-    'mfr': conf.get('spine0', 'mfr'),
-    'port': conf.get('spine0', 'port'),
-    'protocol': conf.get('spine0', 'protocol'),
-    'mgmtPort': conf.get('spine0', 'mgmtPort'),
-}
-
-spine1 = {
-    'id': conf.get('spine1', 'id'),
-    'name': conf.get('spine1', 'name'),
-    'type': conf.get('spine1', 'type'),
-    'mgmtIpAddress': conf.get('spine1', 'mgmtIpAddress'),
-    'mac': conf.get('spine1', 'mac'),
-    'nos': conf.get('spine1', 'nos'),
-    'mfr': conf.get('spine1', 'mfr'),
-    'port': conf.get('spine1', 'port'),
-    'protocol': conf.get('spine1', 'protocol'),
-    'mgmtPort': conf.get('spine1', 'mgmtPort'),
-}
-
-leaf0 = {
-    'id': conf.get('leaf0', 'id'),
-    'name': conf.get('leaf0', 'name'),
-    'type': conf.get('leaf0', 'type'),
-    'mgmtIpAddress': conf.get('leaf0', 'mgmtIpAddress'),
-    'mac': conf.get('leaf0', 'mac'),
-    'nos': conf.get('leaf0', 'nos'),
-    'mfr': conf.get('leaf0', 'mfr'),
-    'port': conf.get('leaf0', 'port'),
-    'protocol': conf.get('leaf0', 'protocol'),
-    'mgmtPort': conf.get('leaf0', 'mgmtPort'),
-    'front_port_A': int(conf.get('leaf0', 'front_port_A')),
-    'front_port_B': int(conf.get('leaf0', 'front_port_B')),
-}
-
-leaf1 = {
-    'id': conf.get('leaf1', 'id'),
-    'name': conf.get('leaf1', 'name'),
-    'type': conf.get('leaf1', 'type'),
-    'mgmtIpAddress': conf.get('leaf1', 'mgmtIpAddress'),
-    'mac': conf.get('leaf1', 'mac'),
-    'nos': conf.get('leaf1', 'nos'),
-    'mfr': conf.get('leaf1', 'mfr'),
-    'port': conf.get('leaf1', 'port'),
-    'protocol': conf.get('leaf1', 'protocol'),
-    'mgmtPort': conf.get('leaf1', 'mgmtPort'),
-    'front_port_A': int(conf.get('leaf1', 'front_port_A')),
-    'front_port_B': int(conf.get('leaf1', 'front_port_B')),
-}
+spine0 = create_device(conf, 'spine0')
+spine1 = create_device(conf, 'spine1')
+leaf0 = create_device(conf, 'leaf0')
+leaf1 = create_device(conf, 'leaf1')
 
 # remote power info
-spine0_power = {
-    'username': REMOTE_POWER_USERNAME,
-    'password': REMOTE_POWER_PASSWORD,
-    'ip': conf.get('spine0', 'remotePowerIp'),
-    'plug_id': conf.get('spine0', 'remotePowerPlugId'),
-}
+spine0_power = create_remote_power(conf, 'spine0')
+spine1_power = create_remote_power(conf, 'spine1')
+leaf0_power = create_remote_power(conf, 'leaf0')
+leaf1_power = create_remote_power(conf, 'leaf1')
 
-spine1_power = {
-    'username': REMOTE_POWER_USERNAME,
-    'password': REMOTE_POWER_PASSWORD,
-    'ip': conf.get('spine1', 'remotePowerIp'),
-    'plug_id': conf.get('spine1', 'remotePowerPlugId'),
-}
-
-leaf0_power = {
-    'username': REMOTE_POWER_USERNAME,
-    'password': REMOTE_POWER_PASSWORD,
-    'ip': conf.get('leaf0', 'remotePowerIp'),
-    'plug_id': conf.get('leaf0', 'remotePowerPlugId'),
-}
-
-leaf1_power = {
-    'username': REMOTE_POWER_USERNAME,
-    'password': REMOTE_POWER_PASSWORD,
-    'ip': conf.get('leaf1', 'remotePowerIp'),
-    'plug_id': conf.get('leaf1', 'remotePowerPlugId'),
-}
 
 host0 = {
     'id': 'host0',
