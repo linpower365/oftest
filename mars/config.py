@@ -64,19 +64,22 @@ def create_remote_power(conf, rp_name):
 
     return remote_power
 
-
 # devices under test
-spine0 = create_device(conf, 'spine0')
-spine1 = create_device(conf, 'spine1')
-leaf0 = create_device(conf, 'leaf0')
-leaf1 = create_device(conf, 'leaf1')
+# spine0 = create_device(conf, 'spine0')
+# spine1 = create_device(conf, 'spine1')
+# leaf0 = create_device(conf, 'leaf0')
+# leaf1 = create_device(conf, 'leaf1')
 
 # remote power info
-spine0_power = create_remote_power(conf, 'spine0')
-spine1_power = create_remote_power(conf, 'spine1')
-leaf0_power = create_remote_power(conf, 'leaf0')
-leaf1_power = create_remote_power(conf, 'leaf1')
+# spine0_power = create_remote_power(conf, 'spine0')
+# spine1_power = create_remote_power(conf, 'spine1')
+# leaf0_power = create_remote_power(conf, 'leaf0')
+# leaf1_power = create_remote_power(conf, 'leaf1')
 
+# dynamically create devices and remote power
+for device in conf.sections():
+    globals()[device] = create_device(conf, device)
+    globals()[device + "_power"] = create_remote_power(conf, device)
 
 host0 = {
     'id': 'host0',
