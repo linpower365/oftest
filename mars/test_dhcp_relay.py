@@ -39,6 +39,7 @@ from scapy.layers.l2 import *
 from scapy.layers.inet import *
 from scapy.layers.dhcp import *
 
+
 class DHCPRelayTest(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -48,6 +49,7 @@ class DHCPRelayTest(base_tests.SimpleDataPlane):
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
 
 class SetterAndGetter(DHCPRelayTest):
     """
@@ -69,9 +71,13 @@ class SetterAndGetter(DHCPRelayTest):
         )
 
         actual_dhcp_relay = dhcp_relay.get_content()
-        assert(dhcp_relay._tenant == actual_dhcp_relay['dhcpRelayServers'][0]['tenant'])
-        assert(dhcp_relay._segment == actual_dhcp_relay['dhcpRelayServers'][0]['segment'])
-        assert(dhcp_relay._servers_list == actual_dhcp_relay['dhcpRelayServers'][0]['servers'])
+        assert(dhcp_relay._tenant ==
+               actual_dhcp_relay['dhcpRelayServers'][0]['tenant'])
+        assert(dhcp_relay._segment ==
+               actual_dhcp_relay['dhcpRelayServers'][0]['segment'])
+        assert(dhcp_relay._servers_list ==
+               actual_dhcp_relay['dhcpRelayServers'][0]['servers'])
+
 
 class TransmitPacket(DHCPRelayTest):
     """
@@ -82,9 +88,11 @@ class TransmitPacket(DHCPRelayTest):
         ports = sorted(config["port_map"].keys())
 
         case_item_list = [
-            #s1_vlan_id s2_vlan_id  s1_vlan_ip       s2_vlan_ip         dhcp_server_ip      allocated_ip
-            (50,        100,        '192.168.50.1', '192.168.100.1',    '192.168.100.20',   '192.168.50.51'),
-            (60,        200,        '192.168.60.1', '192.168.200.1',    '192.168.200.20',   '192.168.60.51')
+            # s1_vlan_id s2_vlan_id  s1_vlan_ip       s2_vlan_ip         dhcp_server_ip      allocated_ip
+            (50,        100,        '192.168.50.1', '192.168.100.1',
+             '192.168.100.20',   '192.168.50.51'),
+            (60,        200,        '192.168.60.1',
+             '192.168.200.1',    '192.168.200.20',   '192.168.60.51')
         ]
 
         for case_item in case_item_list:
@@ -118,35 +126,44 @@ class TransmitPacket(DHCPRelayTest):
 
             cfg.dhcp_server['ip'] = dhcp_server_ip
 
-            spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
-            send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+            spine = get_master_spine(
+                self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+            send_icmp_echo_request(
+                self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
             dhcp_pkt = DHCP_PKT()
 
             # verify dhcp discover
             dhcp_discover = dhcp_pkt.generate_discover_pkt(cfg.host0)
-            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
 
             self.dataplane.send(ports[0], str(dhcp_discover))
             verify_packet(self, str(expected_dhcp_discover), ports[3])
 
             # verify dhcp offer
-            dhcp_offer = dhcp_pkt.generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_offer = dhcp_pkt.generate_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_offer))
             verify_packet(self, str(expected_dhcp_offer), ports[0])
 
             # verify dhcp request
-            dhcp_request = dhcp_pkt.generate_request_pkt(cfg.dhcp_server, cfg.host0, allocated_ip)
-            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+            dhcp_request = dhcp_pkt.generate_request_pkt(
+                cfg.dhcp_server, cfg.host0, allocated_ip)
+            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[0], str(dhcp_request))
             verify_packet(self, str(expected_dhcp_request), ports[3])
 
             # verify dhcp ack
-            dhcp_ack = dhcp_pkt.generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_ack = dhcp_pkt.generate_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_ack))
             verify_packet(self, str(expected_dhcp_ack), ports[0])
@@ -160,10 +177,12 @@ class TransmitPacket(DHCPRelayTest):
 
             wait_for_system_stable()
 
+
 class MultipleServer(DHCPRelayTest):
     """
     Test DHCP relay with multiple server
     """
+
     def runTest(self):
         ports = sorted(config["port_map"].keys())
 
@@ -196,35 +215,44 @@ class MultipleServer(DHCPRelayTest):
 
         cfg.dhcp_server['ip'] = '192.168.100.20'
 
-        spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
-        send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+        spine = get_master_spine(
+            self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+        send_icmp_echo_request(
+            self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         dhcp_pkt = DHCP_PKT()
 
         # verify dhcp discover
         dhcp_discover = dhcp_pkt.generate_discover_pkt(cfg.host0)
-        expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+        expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
 
         self.dataplane.send(ports[0], str(dhcp_discover))
         verify_packet(self, str(expected_dhcp_discover), ports[3])
 
         # verify dhcp offer
-        dhcp_offer = dhcp_pkt.generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-        expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        dhcp_offer = dhcp_pkt.generate_offer_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[3], str(dhcp_offer))
         verify_packet(self, str(expected_dhcp_offer), ports[0])
 
         # verify dhcp request
-        dhcp_request = dhcp_pkt.generate_request_pkt(cfg.dhcp_server, cfg.host0, allocated_ip)
-        expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+        dhcp_request = dhcp_pkt.generate_request_pkt(
+            cfg.dhcp_server, cfg.host0, allocated_ip)
+        expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[0], str(dhcp_request))
         verify_packet(self, str(expected_dhcp_request), ports[3])
 
         # verify dhcp ack
-        dhcp_ack = dhcp_pkt.generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-        expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        dhcp_ack = dhcp_pkt.generate_ack_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[3], str(dhcp_ack))
         verify_packet(self, str(expected_dhcp_ack), ports[0])
@@ -233,10 +261,12 @@ class MultipleServer(DHCPRelayTest):
         lrouter.destroy()
         t1.destroy()
 
+
 class CrossSystemTenant(DHCPRelayTest):
     """
     Test DHCP relay cross system tenant
     """
+
     def runTest(self):
         ports = sorted(config["port_map"].keys())
 
@@ -300,36 +330,45 @@ class CrossSystemTenant(DHCPRelayTest):
 
         cfg.dhcp_server['ip'] = dhcp_server_ip
 
-        #TODO: this case needs VRF feature
-        spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
-        send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+        # TODO: this case needs VRF feature
+        spine = get_master_spine(
+            self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+        send_icmp_echo_request(
+            self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
         dhcp_pkt = DHCP_PKT()
 
         # verify dhcp discover
         dhcp_discover = dhcp_pkt.generate_discover_pkt(cfg.host0)
-        expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip)
+        expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip)
 
         self.dataplane.send(ports[0], str(dhcp_discover))
         verify_packet(self, str(expected_dhcp_discover), ports[3])
 
         # verify dhcp offer
-        dhcp_offer = dhcp_pkt.generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-        expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        dhcp_offer = dhcp_pkt.generate_offer_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[3], str(dhcp_offer))
         verify_packet(self, str(expected_dhcp_offer), ports[0])
 
         # verify dhcp request
-        dhcp_request = dhcp_pkt.generate_request_pkt(cfg.dhcp_server, cfg.host0, allocated_ip)
-        expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip, allocated_ip)
+        dhcp_request = dhcp_pkt.generate_request_pkt(
+            cfg.dhcp_server, cfg.host0, allocated_ip)
+        expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s4_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[0], str(dhcp_request))
         verify_packet(self, str(expected_dhcp_request), ports[3])
 
         # verify dhcp ack
-        dhcp_ack = dhcp_pkt.generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-        expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        dhcp_ack = dhcp_pkt.generate_ack_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+        expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(
+            spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
         self.dataplane.send(ports[3], str(dhcp_ack))
         verify_packet(self, str(expected_dhcp_ack), ports[0])

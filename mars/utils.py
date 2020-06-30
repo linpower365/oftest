@@ -6,6 +6,7 @@ import time
 import base64
 import requests
 import config as cfg
+import oftest
 from oftest.testutils import *
 from telnetlib import Telnet
 from scapy.layers.l2 import *
@@ -21,17 +22,22 @@ DELETE_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
 
 LINKS_INSPECT_RETRY_NUM_MAX = 300
 
+
 def wait_for_system_stable():
     time.sleep(5)
+
 
 def wait_for_system_process():
     time.sleep(1)
 
+
 def wait_for_seconds(sec):
     time.sleep(sec)
 
+
 def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
     arp_request = simple_arp_packet(
+        pktlen=42,
         eth_dst='ff:ff:ff:ff:ff:ff',
         eth_src=sender['mac'],
         arp_op=1,
@@ -73,6 +79,7 @@ def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
     assert spine is not None, 'Get master spine failure!'
     return spine
 
+
 def send_icmp_echo_request(dataplane, sender, target, dst_ip, port):
     icmp_echo_request = simple_icmp_packet(
         eth_dst=target['mac'],
@@ -85,7 +92,8 @@ def send_icmp_echo_request(dataplane, sender, target, dst_ip, port):
         dataplane.send(port, str(icmp_echo_request))
         wait_for_seconds(1)
 
-def telnet_and_execute(host_ip, cli_command_list, debug = False):
+
+def telnet_and_execute(host_ip, cli_command_list, debug=False):
     tn = Telnet(host_ip)
 
     # login
@@ -106,30 +114,45 @@ def telnet_and_execute(host_ip, cli_command_list, debug = False):
         send(tn, send_word)
         expect(tn, expect_word)
 
+
 def send(tn, word):
-   tn.write(word.encode('ascii') + b"\r\n")
+    tn.write(word.encode('ascii') + b"\r\n")
+
 
 def expect(tn, word):
-   tn.read_until(word.encode('utf-8'))
+    tn.read_until(word.encode('utf-8'))
 
-def setup_configuration():
-    check_license()
+
+def setup_devices():
+    for device in cfg.total_dut:
+        config_remove(device)
 
     for device in cfg.devices:
         if config_exists(device) == False:
             config_add(device)
 
-    clear_tenant()
-    clear_uplink_segment()
-    clear_logical_router()
-    clear_span()
-    clear_dhcp_relay()
-    enable_ports()
+
+def setup_configuration():
+    check_license()
+
+    setup_power()
+    setup_devices()
+
+    if oftest.config['test_topology'] == 'scatter':
+        clear_span()
+    else:
+        clear_tenant()
+        clear_uplink_segment()
+        clear_logical_router()
+        clear_span()
+        clear_dhcp_relay()
+        enable_ports()
 
     links_inspect(cfg.spines, cfg.leaves)
 
+
 def port_configuration():
-    cfg.leaf0['portA']  = (
+    cfg.leaf0['portA'] = (
         Port(cfg.leaf0['front_port_A'])
         .tagged(False)
         .nos(cfg.leaf0['nos'])
@@ -150,13 +173,16 @@ def port_configuration():
         .nos(cfg.leaf1['nos'])
     )
 
+
 def config_exists(device):
-    response = requests.get(URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
+    response = requests.get(
+        URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
 
     if response.status_code == 404:
         return False
     elif response.status_code == 200:
         return True
+
 
 def config_add(device):
     if device['type'] == 'leaf':
@@ -192,16 +218,19 @@ def config_add(device):
             "nos": device['nos'],
             "mfr": device['mfr'],
             "port": device['port'],
-            "protocol": device['protocol'],
-            "rack_id": "1"
+            "protocol": device['protocol']
         }
 
-    response = requests.post(URL+'v1/devices', json=payload, headers=POST_HEADER)
+    response = requests.post(
+        URL+'v1/devices', json=payload, headers=POST_HEADER)
     assert response.status_code == 200, 'Add device fail! ' + response.text
 
+
 def config_remove(device):
-    response = requests.delete(URL+'v1/devices/{}'.format(device['id']), headers=DELETE_HEADER)
+    response = requests.delete(
+        URL+'v1/devices/{}'.format(device['id']), headers=DELETE_HEADER)
     assert response.status_code == 200, 'Delete device fail! ' + response.text
+
 
 def clear_tenant():
     response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
@@ -215,14 +244,17 @@ def clear_tenant():
             tmp_tenant = Tenant(t['name'])
             tmp_tenant.destroy()
 
+
 def clear_uplink_segment():
-    response = requests.get(URL+"topology/v1/uplink-segments", headers=GET_HEADER)
+    response = requests.get(
+        URL+"topology/v1/uplink-segments", headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['uplinkSegments']:
         for up_seg in response.json()['uplinkSegments']:
             tmp_uplink_segment = UplinkSegment(up_seg['segment_name'])
             tmp_uplink_segment.destroy()
+
 
 def clear_logical_router():
     response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
@@ -236,32 +268,42 @@ def clear_logical_router():
             clear_nexthop_group(lrouter['tenant'], lrouter['name'])
             clear_static_route(lrouter['tenant'], lrouter['name'])
 
+
 def clear_policy_route(tenant, lrouter):
-    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/policy-route".format(tenant, lrouter), headers=GET_HEADER)
+    response = requests.get(
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/policy-route".format(tenant, lrouter), headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['policies']:
         for policy in response.json()['policies']:
-            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(tenant, lrouter, policy['name']), headers=GET_HEADER)
-            assert response.status_code == 200, 'Destroy policy route fail '+ response.text
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(
+                tenant, lrouter, policy['name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy policy route fail ' + response.text
+
 
 def clear_nexthop_group(tenant, lrouter):
-    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group".format(tenant, lrouter), headers=GET_HEADER)
+    response = requests.get(
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group".format(tenant, lrouter), headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['nextHops']:
         for nexthop in response.json()['nextHops']:
-            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(tenant, lrouter, nexthop['nexthop_group_name']), headers=GET_HEADER)
-            assert response.status_code == 200, 'Destroy nexthop group fail '+ response.text
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(
+                tenant, lrouter, nexthop['nexthop_group_name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy nexthop group fail ' + response.text
+
 
 def clear_static_route(tenant, lrouter):
-    response = requests.get(URL+"tenantlogicalrouter/v1/tenants/{}/{}/static-route".format(tenant, lrouter), headers=GET_HEADER)
+    response = requests.get(
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/static-route".format(tenant, lrouter), headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['routes']:
         for static_route in response.json()['routes']:
-            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(tenant, lrouter, static_route['name']), headers=GET_HEADER)
-            assert response.status_code == 200, 'Destroy static route fail '+ response.text
+            response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(
+                tenant, lrouter, static_route['name']), headers=GET_HEADER)
+            assert response.status_code == 200, 'Destroy static route fail ' + response.text
+
 
 def clear_span():
     response = requests.get(URL+"monitor/v1", headers=GET_HEADER)
@@ -269,21 +311,25 @@ def clear_span():
 
     if 'sessions' in response.json():
         for session in response.json()['sessions']:
-            response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=DELETE_HEADER)
-            assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
+            response = requests.delete(
+                URL+'monitor/v1/{}'.format(session['session']), headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Destroy SAPN session fail ' + response.text
+
 
 def clear_dhcp_relay():
     response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
-    assert response.status_code == 200, 'Get DHCP relay fail! '+ response.text
+    assert response.status_code == 200, 'Get DHCP relay fail! ' + response.text
 
     if 'dhcpRelayServers' in response.json():
         for dhcpRelayServer in response.json()['dhcpRelayServers']:
             for server in dhcpRelayServer['servers']:
                 response = requests.delete(
-                    URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
+                    URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(
+                        dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
                     headers=GET_HEADER
                 )
-                assert response.status_code == 200, 'Destroy DHCP relay server fail '+ response.text
+                assert response.status_code == 200, 'Destroy DHCP relay server fail ' + response.text
+
 
 def enable_ports():
     response = requests.get(URL+"v1/devices/ports", headers=GET_HEADER)
@@ -294,10 +340,12 @@ def enable_ports():
             payload = {
                 'enabled': True,
             }
-            response = requests.post(URL+"v1/devices/{}/portstate/{}".format(port['element'], port['port']), headers=POST_HEADER, json=payload)
-            assert response.status_code == 200, 'Enable port fail! '+ response.text
+            response = requests.post(URL+"v1/devices/{}/portstate/{}".format(
+                port['element'], port['port']), headers=POST_HEADER, json=payload)
+            assert response.status_code == 200, 'Enable port fail! ' + response.text
 
-def links_inspect(spines, leaves, second=0, fail_stop=False, debug=False):
+
+def links_inspect(spines, leaves, debug=False, second=0, fail_stop=False):
     start_time = time.time()
 
     wait_for_seconds(second)
@@ -319,11 +367,13 @@ def links_inspect(spines, leaves, second=0, fail_stop=False, debug=False):
                 match = [
                     link for link in response.json()['links']
                     if (link['src']['device'] == spine['id'] and link['dst']['device'] == leaf['id']) or
-                       (link['dst']['device'] == spine['id'] and link['src']['device'] == leaf['id'])
+                       (link['dst']['device'] == spine['id']
+                        and link['src']['device'] == leaf['id'])
                 ]
 
                 if fail_stop:
-                    assert match, 'The connection is broken between '+ spine['id'] + ' and ' + leaf['id']
+                    assert match, 'The connection is broken between ' + \
+                        spine['id'] + ' and ' + leaf['id']
                 else:
                     while match:
                         total_link.append(match.pop())
@@ -342,6 +392,7 @@ def links_inspect(spines, leaves, second=0, fail_stop=False, debug=False):
 
     assert retry_count < LINKS_INSPECT_RETRY_NUM_MAX, 'Link inspect takes too much time'
 
+
 def check_license():
     response = requests.get(URL+"v1/license/v1", headers=GET_HEADER)
     assert(response.status_code == 200)
@@ -350,8 +401,19 @@ def check_license():
         # files = {'file': open('../licenseForNCTU.lic', 'rb')}
         # response = requests.post(URL+'v1/license/BinaryFile', files=files, headers=POST_HEADER)
         data = open('../licenseForNCTU.lic', 'rb').read()
-        response = requests.post(URL+'v1/license/BinaryFile', data=data, headers=POST_HEADER)
+        response = requests.post(
+            URL+'v1/license/BinaryFile', data=data, headers=POST_HEADER)
         assert response.status_code == 200, 'Add license fail! ' + response.text
+
+
+def setup_power():
+    rp_spine1 = RemotePower(cfg.spine1_power)
+
+    if oftest.config['test_topology'] == 'scatter':
+        rp_spine1.Off()
+    else:
+        rp_spine1.On()
+
 
 class RemotePower():
     def __init__(self, config):
@@ -359,7 +421,7 @@ class RemotePower():
         username = config['username']
         password = config['password']
 
-        pos = {'A':0, 'B':1, 'C':2, 'D':3, 'E':4, 'F':5, 'G':6, 'H':7}
+        pos = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7}
 
         self._led = list("000000000000000000000000")
         self._led[pos[config['plug_id']]] = '1'
@@ -372,16 +434,20 @@ class RemotePower():
         self._url = "http://" + config['ip'] + "/"
 
     def On(self):
-        response = requests.post(self._url+"ons.cgi?led=" + "".join(self._led), headers=self._post_header)
-        assert response.status_code == 200, 'Turn on remote power fail! '+ response.text
+        response = requests.post(
+            self._url+"ons.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn on remote power fail! ' + response.text
 
     def Off(self):
-        response = requests.post(self._url+"offs.cgi?led=" + "".join(self._led), headers=self._post_header)
-        assert response.status_code == 200, 'Turn off remote power fail! '+ response.text
+        response = requests.post(
+            self._url+"offs.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn off remote power fail! ' + response.text
 
     def OffOn(self):
-        response = requests.post(self._url+"offon.cgi?led=" + "".join(self._led), headers=self._post_header)
-        assert response.status_code == 200, 'Turn off and on remote power fail! '+ response.text
+        response = requests.post(
+            self._url+"offon.cgi?led=" + "".join(self._led), headers=self._post_header)
+        assert response.status_code == 200, 'Turn off and on remote power fail! ' + response.text
+
 
 class SegmentMember():
     def __init__(self, segment_name, device_id):
@@ -406,13 +472,14 @@ class SegmentMember():
 
         return self
 
+
 class Tenant():
-    def __init__(self, name, type = 'Normal'):
+    def __init__(self, name, type='Normal'):
         self.name = name
         self.segments = []
         self.type = type
 
-    def segment(self, name = None, type = None, ip_address = None, vlan_id = None):
+    def segment(self, name=None, type=None, ip_address=None, vlan_id=None):
         self.segments.append({
             'name': name,
             'type': type,
@@ -437,7 +504,8 @@ class Tenant():
     def access_port(self, segment_name, name, switch, port, vlan):
         for segment in self.segments:
             if segment['name'] == segment_name:
-                access_port_info = {'name': name, 'switch': switch, 'port': port, 'vlan': vlan}
+                access_port_info = {
+                    'name': name, 'switch': switch, 'port': port, 'vlan': vlan}
                 if not segment['access_port_list']:
                     segment['access_port_list'] = [access_port_info]
                 else:
@@ -448,7 +516,8 @@ class Tenant():
     def network_port(self, segment_name, name, ip_addresses, uplink_segment):
         for segment in self.segments:
             if segment['name'] == segment_name:
-                network_port_info = {'name': name, 'ip_addresses': ip_addresses, 'uplink_segment': uplink_segment}
+                network_port_info = {
+                    'name': name, 'ip_addresses': ip_addresses, 'uplink_segment': uplink_segment}
                 if not segment['network_port_list']:
                     segment['network_port_list'] = [network_port_info]
                 else:
@@ -469,8 +538,9 @@ class Tenant():
             'name': self.name,
             'type': self.type
         }
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
-        assert response.status_code == 200, 'Add a tenant fail! '+ response.text
+        response = requests.post(
+            URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+        assert response.status_code == 200, 'Add a tenant fail! ' + response.text
 
     def build_segment(self):
         for segment in self.segments:
@@ -487,7 +557,8 @@ class Tenant():
                     "ip_address": segment['ip_address'],
                     "value": segment['vlan_id']
                 }
-            response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(self.name), json=payload, headers=POST_HEADER)
+            response = requests.post(
+                URL+'v1/tenants/v1/{}/segments'.format(self.name), json=payload, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment fail! ' + response.text
 
             if segment['type'] == 'vlan':
@@ -500,14 +571,14 @@ class Tenant():
         if segment['members_list'] is not None:
             for member in segment['members_list']:
                 payload = {
-                    "ports" : member._ports,
-                    "logical_ports" : member._logical_ports,
-                    "mac_based_vlans" : member._mac_based_vlan
+                    "ports": member._ports,
+                    "logical_ports": member._logical_ports,
+                    "mac_based_vlans": member._mac_based_vlan
                 }
 
                 response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member._devices_id),
-                    json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add segment member fail '+ response.text
+                                         json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add segment member fail ' + response.text
 
     def build_access_port(self, segment):
         if segment['access_port_list'] is not None:
@@ -515,18 +586,19 @@ class Tenant():
                 payload = {
                     "access_port": [
                         {
-                        "name": access_port['name'],
-                        "type": "normal",
-                        "switch": access_port['switch'],
-                        "port": access_port['port'],
-                        "vlan": access_port['vlan']
+                            "name": access_port['name'],
+                            "type": "normal",
+                            "switch": access_port['switch'],
+                            "port": access_port['port'],
+                            "vlan": access_port['vlan']
                         }
                     ],
                     "network_port": []
                 }
 
-                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add access port fail! '+ response.text
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(
+                    self.name, segment['name']), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add access port fail! ' + response.text
 
     def build_network_port(self, segment):
         if segment['network_port_list'] is not None:
@@ -535,23 +607,26 @@ class Tenant():
                     "access_port": [],
                     "network_port": [
                         {
-                        "name": network_port['name'],
-                        "ip_addresses": network_port['ip_addresses'],
-                        "uplink_segment": network_port['uplink_segment']
+                            "name": network_port['name'],
+                            "ip_addresses": network_port['ip_addresses'],
+                            "uplink_segment": network_port['uplink_segment']
                         }
                     ]
                 }
 
-                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(self.name, segment['name']), json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add network port fail! '+ response.text
+                response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(
+                    self.name, segment['name']), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add network port fail! ' + response.text
 
     def delete_segment(self, name):
-        response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(self.name, name), headers=GET_HEADER)
-        assert response.status_code == 200, 'Delete segment fail '+ response.text
+        response = requests.delete(
+            URL+'v1/tenants/v1/{}/segments/{}'.format(self.name, name), headers=GET_HEADER)
+        assert response.status_code == 200, 'Delete segment fail ' + response.text
 
     def destroy(self):
-        response = requests.delete(URL+'v1/tenants/v1/{}'.format(self.name), headers=GET_HEADER)
-        assert response.status_code == 200, 'Destroy tenant fail '+ response.text
+        response = requests.delete(
+            URL+'v1/tenants/v1/{}'.format(self.name), headers=GET_HEADER)
+        assert response.status_code == 200, 'Destroy tenant fail ' + response.text
 
     def debug(self):
         # print self.name
@@ -569,17 +644,18 @@ class Tenant():
                     print '===================='
                     print ''
 
+
 class UplinkSegment():
     # def __init__(self, name, device_id, vlan, ports, gateway, gateway_mac, ip_address):
-        # self.uplink_segments.append({
-        #     'name': name,
-        #     'device_id': device_id,
-        #     'vlan': vlan,
-        #     'ports': ports,
-        #     'gateway': gateway,
-        #     'gateway_mac': gateway_mac,
-        #     'ip_address': ip_address
-        # })
+    # self.uplink_segments.append({
+    #     'name': name,
+    #     'device_id': device_id,
+    #     'vlan': vlan,
+    #     'ports': ports,
+    #     'gateway': gateway,
+    #     'gateway_mac': gateway_mac,
+    #     'ip_address': ip_address
+    # })
 
     def __init__(self, name):
         self.uplink_segment = {}
@@ -626,15 +702,18 @@ class UplinkSegment():
             "ip_address": self.uplink_segment['ip_address']
         }
 
-        response = requests.post(URL+'topology/v1/uplink-segments', json=payload, headers=POST_HEADER)
-        assert response.status_code == 200, 'Add uplink segment fail! '+ response.text
+        response = requests.post(
+            URL+'topology/v1/uplink-segments', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add uplink segment fail! ' + response.text
 
     def destroy(self):
-        response = requests.delete(URL+'topology/v1/uplink-segments/{}'.format(self.uplink_segment['name']), headers=GET_HEADER)
-        assert response.status_code == 200, 'Destroy uplink segment fail '+ response.text
+        response = requests.delete(
+            URL+'topology/v1/uplink-segments/{}'.format(self.uplink_segment['name']), headers=GET_HEADER)
+        assert response.status_code == 200, 'Destroy uplink segment fail ' + response.text
 
     def debug(self):
         print UplinkSegment
+
 
 class Device():
 
@@ -643,10 +722,12 @@ class Device():
 
     @property
     def available(self):
-        response = requests.get(URL+'v1/devices/{}'.format(self._id), headers=GET_HEADER)
-        assert response.status_code == 200, 'Get device fail! '+ response.text
+        response = requests.get(
+            URL+'v1/devices/{}'.format(self._id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get device fail! ' + response.text
 
         return response.json()['available']
+
 
 class DevicePort():
 
@@ -658,14 +739,16 @@ class DevicePort():
         payload = {
             'enabled': enabled,
         }
-        response = requests.post(URL+"v1/devices/{}/portstate/{}".format(self.device_id, self.port_id), headers=POST_HEADER, json=payload)
-        assert response.status_code == 200, 'Change port state fail! '+ response.text
+        response = requests.post(URL+"v1/devices/{}/portstate/{}".format(
+            self.device_id, self.port_id), headers=POST_HEADER, json=payload)
+        assert response.status_code == 200, 'Change port state fail! ' + response.text
 
     def link_up(self):
         self.link_state(True)
 
     def link_down(self):
         self.link_state(False)
+
 
 class Port():
 
@@ -708,6 +791,7 @@ class Port():
             return self._port_id - 1
         else:
             return self._port_id
+
 
 class PolicyRoute():
 
@@ -769,6 +853,7 @@ class PolicyRoute():
         print self._match_ip
         print self._nexthop
 
+
 class LogicalRouter():
 
     def __init__(self, name, tenant=None):
@@ -798,7 +883,8 @@ class LogicalRouter():
         return self
 
     def nexthop_group(self, name, ip_addresses):
-        self.nexthop_groups.append({'name': name, 'ip_addresses': ip_addresses})
+        self.nexthop_groups.append(
+            {'name': name, 'ip_addresses': ip_addresses})
 
         return self
 
@@ -815,23 +901,27 @@ class LogicalRouter():
         return self
 
     def destroy(self):
-        response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}'.format(self.tenant, self.name), headers=GET_HEADER)
-        assert response.status_code == 200, 'Destroy logical router fail '+ response.text
+        response = requests.delete(
+            URL+'tenantlogicalrouter/v1/tenants/{}/{}'.format(self.tenant, self.name), headers=GET_HEADER)
+        assert response.status_code == 200, 'Destroy logical router fail ' + response.text
 
         if self.policy_routes:
             for policy_route in self.policy_routes:
-                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(self.tenant, self.name, policy_route._name), headers=GET_HEADER)
-                assert response.status_code == 200, 'Destroy policy route fail '+ response.text
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(
+                    self.tenant, self.name, policy_route._name), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy policy route fail ' + response.text
 
         if self.nexthop_groups:
             for nexthop_group in self.nexthop_groups:
-                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(self.tenant, self.name, nexthop_group['name']), headers=GET_HEADER)
-                assert response.status_code == 200, 'Destroy nexthop group fail '+ response.text
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(
+                    self.tenant, self.name, nexthop_group['name']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy nexthop group fail ' + response.text
 
         if self.static_routes:
             for static_route in self.static_routes:
-                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(self.tenant, self.name, static_route['name']), headers=GET_HEADER)
-                assert response.status_code == 200, 'Destroy static route fail '+ response.text
+                response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(
+                    self.tenant, self.name, static_route['name']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy static route fail ' + response.text
 
     def build(self):
         self.build_lrouter()
@@ -853,11 +943,13 @@ class LogicalRouter():
         }
 
         if self.name == 'system':
-            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.name), json=payload['system'], headers=POST_HEADER)
-            assert response.status_code == 200, 'Add logical router fail! '+ response.text
+            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(
+                self.name), json=payload['system'], headers=POST_HEADER)
+            assert response.status_code == 200, 'Add logical router fail! ' + response.text
         else:
-            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(self.tenant), json=payload['normal'], headers=POST_HEADER)
-            assert response.status_code == 200, 'Add logical router fail! '+ response.text
+            response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(
+                self.tenant), json=payload['normal'], headers=POST_HEADER)
+            assert response.status_code == 200, 'Add logical router fail! ' + response.text
 
     def build_policy_route(self):
         if self.policy_routes:
@@ -873,8 +965,9 @@ class LogicalRouter():
                     "nexthop": policy_route._nexthop
                 }
 
-                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add policy route fail! '+ response.text
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route'.format(
+                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add policy route fail! ' + response.text
 
     def build_nexthop_group(self):
         if self.nexthop_groups:
@@ -884,8 +977,9 @@ class LogicalRouter():
                     "ip_addresses": nexthop_group['ip_addresses']
                 }
 
-                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add nexthop group fail! '+ response.text
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group'.format(
+                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add nexthop group fail! ' + response.text
 
     def build_static_route(self):
         if self.static_routes:
@@ -897,8 +991,9 @@ class LogicalRouter():
                     "nexthop_group": static_route['nexthop_group']
                 }
 
-                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route'.format(self.tenant, self.name), json=payload, headers=POST_HEADER)
-                assert response.status_code == 200, 'Add static router fail! '+ response.text
+                response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route'.format(
+                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                assert response.status_code == 200, 'Add static router fail! ' + response.text
 
     def debug(self):
         print 'router = ' + self.name
@@ -906,6 +1001,7 @@ class LogicalRouter():
         print 'interfacs = ' + str(self.interfaces)
         print 'nexthop_groups = ' + str(self.nexthop_groups)
         self.policy_routes[0].debug()
+
 
 class SPAN():
     def __init__(self, session):
@@ -927,8 +1023,9 @@ class SPAN():
         return self
 
     def get_session(self, session_id):
-        response = requests.get(URL+'monitor/v1/{}'.format(session_id), headers=GET_HEADER)
-        assert response.status_code == 200, 'Get SPAN session fail! '+ response.text
+        response = requests.get(
+            URL+'monitor/v1/{}'.format(session_id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get SPAN session fail! ' + response.text
 
         return response.json()
 
@@ -946,8 +1043,9 @@ class SPAN():
             "session": self._session
         }
 
-        response = requests.post(URL+'monitor/v1', json=payload, headers=POST_HEADER)
-        assert response.status_code == 200, 'Add SPAN fail! '+ response.text
+        response = requests.post(
+            URL+'monitor/v1', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add SPAN fail! ' + response.text
 
         return self
 
@@ -957,8 +1055,10 @@ class SPAN():
 
         if 'sessions' in response.json():
             for session in response.json()['sessions']:
-                response = requests.delete(URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
-                assert response.status_code == 200, 'Destroy SAPN session fail '+ response.text
+                response = requests.delete(
+                    URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
+                assert response.status_code == 200, 'Destroy SAPN session fail ' + response.text
+
 
 class DHCPRelay():
     def __init__(self, tenant, segment):
@@ -974,7 +1074,7 @@ class DHCPRelay():
 
     def get_content(self):
         response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
-        assert response.status_code == 200, 'Get DHCP relay fail! '+ response.text
+        assert response.status_code == 200, 'Get DHCP relay fail! ' + response.text
 
         return response.json()
 
@@ -985,8 +1085,9 @@ class DHCPRelay():
             "servers": self._servers_list
         }
 
-        response = requests.post(URL+'dhcprelay/v1/logical', json=payload, headers=POST_HEADER)
-        assert response.status_code == 200, 'Add DHCP relay fail! '+ response.text
+        response = requests.post(
+            URL+'dhcprelay/v1/logical', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add DHCP relay fail! ' + response.text
 
         return self
 
@@ -998,10 +1099,12 @@ class DHCPRelay():
             for dhcpRelayServer in response.json()['dhcpRelayServers']:
                 for server in dhcpRelayServer['servers']:
                     response = requests.delete(
-                        URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
+                        URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(
+                            dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
                         headers=GET_HEADER
                     )
-                    assert response.status_code == 200, 'Destroy DHCP relay server fail '+ response.text
+                    assert response.status_code == 200, 'Destroy DHCP relay server fail ' + response.text
+
 
 class DHCP_PKT():
     def __init__(self):
@@ -1009,10 +1112,10 @@ class DHCP_PKT():
 
     def generate_discover_pkt(self, client):
         dhcp_discover = (
-            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff')/
-            IP(src='0.0.0.0', dst='255.255.255.255')/
-            UDP(dport=67, sport=68)/
-            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), xid=1234, flags=0x8000)/
+            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff') /
+            IP(src='0.0.0.0', dst='255.255.255.255') /
+            UDP(dport=67, sport=68) /
+            BOOTP(chaddr=client['mac'].replace(':', '').decode('hex'), xid=1234, flags=0x8000) /
             DHCP(options=[('message-type', 'discover'), 'end'])
         )
 
@@ -1020,10 +1123,10 @@ class DHCP_PKT():
 
     def generate_expected_discover_pkt(self, spine, dhcp_server, client, s1_vlan_ip, s2_vlan_ip):
         expected_dhcp_discover = (
-            Ether(src=spine['mac'], dst=dhcp_server['mac'])/
-            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02)/
-            UDP(dport=67, sport=67)/
-            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, flags=0x8000, hops=1)/
+            Ether(src=spine['mac'], dst=dhcp_server['mac']) /
+            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02) /
+            UDP(dport=67, sport=67) /
+            BOOTP(chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, flags=0x8000, hops=1) /
             DHCP(options=[('message-type', 'discover'), 'end'])
         )
 
@@ -1031,86 +1134,96 @@ class DHCP_PKT():
 
     def generate_offer_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
         dhcp_offer = (
-            Ether(src=dhcp_server['mac'], dst=spine['mac'])/
-            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02)/
-            UDP(dport=67, sport=67)/
-            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
-            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+            Ether(src=dhcp_server['mac'], dst=spine['mac']) /
+            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02) /
+            UDP(dport=67, sport=67) /
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128) /
+            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']),
+                          ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
         )
 
         return dhcp_offer
 
     def generate_expected_offer_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
         expected_dhcp_offer = (
-            Ether(src=spine['mac'], dst=client['mac'])/
-            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02)/
-            UDP(dport=68, sport=67)/
-            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
-            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+            Ether(src=spine['mac'], dst=client['mac']) /
+            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02) /
+            UDP(dport=68, sport=67) /
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128) /
+            DHCP(options=[('message-type', 'offer'), ('server_id', dhcp_server['ip']),
+                          ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
         )
 
         return expected_dhcp_offer
 
     def generate_request_pkt(self, dhcp_server, client, allocated_ip):
         dhcp_request = (
-            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff')/
-            IP(src='0.0.0.0', dst='255.255.255.255')/
-            UDP(dport=67, sport=68)/
-            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), xid=1234)/
-            DHCP(options=[('message-type', 'request'), ('server_id', dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
+            Ether(src=client['mac'], dst='ff:ff:ff:ff:ff:ff') /
+            IP(src='0.0.0.0', dst='255.255.255.255') /
+            UDP(dport=67, sport=68) /
+            BOOTP(chaddr=client['mac'].replace(':', '').decode('hex'), xid=1234) /
+            DHCP(options=[('message-type', 'request'), ('server_id',
+                                                        dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
         )
 
         return dhcp_request
 
     def generate_expected_request_pkt(self, spine, dhcp_server, client, s1_vlan_ip, s2_vlan_ip, allocated_ip):
         expected_dhcp_request = (
-            Ether(src=spine['mac'], dst=dhcp_server['mac'])/
-            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02)/
-            UDP(dport=67, sport=67)/
-            BOOTP(chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, hops=1)/
-            DHCP(options=[('message-type', 'request'), ('server_id', dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
+            Ether(src=spine['mac'], dst=dhcp_server['mac']) /
+            IP(src=s2_vlan_ip, dst=dhcp_server['ip'], id=0, flags=0x02) /
+            UDP(dport=67, sport=67) /
+            BOOTP(chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, hops=1) /
+            DHCP(options=[('message-type', 'request'), ('server_id',
+                                                        dhcp_server['ip']), ("requested_addr", allocated_ip), 'end'])
         )
 
         return expected_dhcp_request
 
     def generate_ack_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
         dhcp_ack = (
-            Ether(src=dhcp_server['mac'], dst=spine['mac'])/
-            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02)/
-            UDP(dport=67, sport=67)/
-            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
-            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+            Ether(src=dhcp_server['mac'], dst=spine['mac']) /
+            IP(src=dhcp_server['ip'], dst=s1_vlan_ip, flags=0x02) /
+            UDP(dport=67, sport=67) /
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128) /
+            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']),
+                          ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
         )
 
         return dhcp_ack
 
     def generate_expected_ack_pkt(self, spine, dhcp_server, client, s1_vlan_ip, allocated_ip):
         expected_dhcp_ack = (
-            Ether(src=spine['mac'], dst=client['mac'])/
-            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02)/
-            UDP(dport=68, sport=67)/
-            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':','').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128)/
-            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']), ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
+            Ether(src=spine['mac'], dst=client['mac']) /
+            IP(src=s1_vlan_ip, dst=allocated_ip, id=0, flags=0x02) /
+            UDP(dport=68, sport=67) /
+            BOOTP(op=2, yiaddr=allocated_ip, chaddr=client['mac'].replace(':', '').decode('hex'), giaddr=s1_vlan_ip, xid=1234, secs=128) /
+            DHCP(options=[('message-type', 'ack'), ('server_id', dhcp_server['ip']),
+                          ('lease_time', 1800), ('subnet_mask', '255.255.255.0'), 'end'])
         )
 
         return expected_dhcp_ack
+
 
 class Configuration():
     def __init__(self):
         pass
 
     def get_current_json(self):
-        response = requests.get(URL+"v1/network/configuration", headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/network/configuration", headers=GET_HEADER)
         assert(response.status_code == 200)
 
         return response.json()
 
     def get_factory_default_json(self):
-        response = requests.get(URL+"v1/network/configuration/files/Factory_Default_Config.cfg", headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/network/configuration/files/Factory_Default_Config.cfg", headers=GET_HEADER)
         assert(response.status_code == 200)
 
         return response.json()
 
     def save_as_boot_default_config(self, json_content):
-        response = requests.post(URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, headers=POST_HEADER)
-        assert response.status_code == 204, 'save as boot default config fail! '+ response.text
+        response = requests.post(
+            URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, headers=POST_HEADER)
+        assert response.status_code == 204, 'save as boot default config fail! ' + response.text

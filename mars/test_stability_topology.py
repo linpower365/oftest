@@ -32,6 +32,7 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
+
 class Stability(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -41,6 +42,7 @@ class Stability(base_tests.SimpleDataPlane):
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
 
 class SpineChange(Stability):
     '''
@@ -88,6 +90,7 @@ class SpineChange(Stability):
 
         assert d0.available, "d0 device's avaiable shall be true"
         assert d1.available, "d1 device's avaiable shall be true"
+
 
 class LeafChange(Stability):
     '''

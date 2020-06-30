@@ -38,6 +38,7 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
+
 class Tenants(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -53,6 +54,7 @@ class Tenants(base_tests.SimpleDataPlane):
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
+
 class Getter(Tenants):
     """
     Test tenant GET method
@@ -62,6 +64,7 @@ class Getter(Tenants):
     def runTest(self):
         response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
+
 
 class AddAndDelete(Tenants):
     """
@@ -117,8 +120,9 @@ class Segment(Tenants):
 
         # add a tenant
         payload = '{"name": "' + tenant_name + '", "type": "System"}'
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, data=payload)
-        assert response.status_code == 200, 'Add a tenant FAIL! '+ response.text
+        response = requests.post(
+            URL+"v1/tenants/v1", headers=POST_HEADER, data=payload)
+        assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
 
         # check if add tenant successfully
         response = requests.get(URL+'v1/tenants/v1', headers=GET_HEADER)
@@ -139,11 +143,13 @@ class Segment(Tenants):
             ],
             "value": "20"
         }
-        response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+        response = requests.post(
+            URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
         assert response.status_code == 200, 'Add segment FAIL! ' + response.text
 
         # check if add segment successfully
-        response = requests.get(URL+'v1/tenants/v1/segments', headers=GET_HEADER)
+        response = requests.get(
+            URL+'v1/tenants/v1/segments', headers=GET_HEADER)
         assert response.status_code == 200, 'Query all segments FAIL!'
         find = False
         for item in response.json()['segments']:
@@ -152,21 +158,26 @@ class Segment(Tenants):
         assert find, 'Add segment FAIL!'
 
         # check if add segment successfully with another API
-        response = requests.get(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+        response = requests.get(
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
         assert response.status_code == 200, 'Query segment FAIL!'
         assert len(response.text) != 0, 'Add segment FAIL!'
 
         # Delete segment
-        response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+        response = requests.delete(
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
         assert response.status_code == 200, 'Delete segment FAIL!'
 
         # check if delete segment successfully
-        response = requests.get(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+        response = requests.get(
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
         assert response.status_code != 200, 'Delete segment FAIL!'
 
         # delete test tenant
-        response = requests.delete(URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+        response = requests.delete(
+            URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
         assert(response.status_code == 200)
+
 
 @disabled
 class LargeScaleSegment(Tenants):
@@ -184,8 +195,9 @@ class LargeScaleSegment(Tenants):
                 'name':  tenant_name,
                 'type': 'Normal'
             }
-            response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
-            assert response.status_code == 200, 'Add a tenant FAIL! '+ response.text
+            response = requests.post(
+                URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+            assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
             # add segment
             segment_name = 'test_segment_+'+str(i)
             payload = {
@@ -196,13 +208,16 @@ class LargeScaleSegment(Tenants):
                 ],
                 "value": i
             }
-            response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+            response = requests.post(
+                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment FAIL! ' + response.text
             # delete segment
-            response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+            response = requests.delete(
+                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
             assert response.status_code == 200, 'Delete segment FAIL!'
             # delete tenant
-            response = requests.delete(URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+            response = requests.delete(
+                URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
             assert(response.status_code == 200)
 
         # case 2: 1 tenant with 4k segment
@@ -212,8 +227,9 @@ class LargeScaleSegment(Tenants):
             'type': 'Normal'
         }
         # add tenant
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
-        assert response.status_code == 200, 'Add a tenant FAIL! '+ response.text
+        response = requests.post(
+            URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+        assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
         # add segment
         for i in range(4000):
             segment_name = 'test_segment_'+str(i)
@@ -225,13 +241,16 @@ class LargeScaleSegment(Tenants):
                 ],
                 "value": 10000+i
             }
-            response = requests.post(URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+            response = requests.post(
+                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment FAIL! ' + response.text
             # delete segment
-            response = requests.delete(URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+            response = requests.delete(
+                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
             assert response.status_code == 200, 'Delete segment FAIL!'
         # delete tenant
-        response = requests.delete(URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+        response = requests.delete(
+            URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
         assert response.status_code == 200, 'Delete tenant FAIL!' + response.text
 
 
@@ -297,103 +316,6 @@ class SegmentConnectionWithVlanType(Tenants):
         t1.destroy()
 
 
-class RecoveryWithVlanType(Tenants):
-    '''
-    Test segment vlan type recovery feature.
-    '''
-
-    def runTest(self):
-        vlan_id = 1000
-        ports = sorted(config["port_map"].keys())
-
-        t1 = (
-            Tenant('t1')
-            .segment('s1', 'vlan', ['192.168.1.1'], vlan_id)
-            .segment_member(SegmentMember('s1', cfg.leaf0['id']).ports([cfg.leaf0['portA'].name, cfg.leaf0['portB'].name]))
-            .segment_member(SegmentMember('s1', cfg.leaf1['id']).ports([cfg.leaf1['portA'].name]))
-            .build()
-        )
-
-        utils.wait_for_system_stable()
-
-        pkt_from_p0_to_p1 = simple_tcp_packet(
-            pktlen=100,
-            dl_vlan_enable=True,
-            vlan_vid=vlan_id,
-            eth_dst='90:e2:ba:24:78:12',
-            eth_src='00:00:00:11:22:33',
-            ip_src='192.168.1.100',
-            ip_dst='192.168.1.101'
-        )
-
-        pkt_from_p0_to_p2 = simple_tcp_packet(
-            pktlen=100,
-            dl_vlan_enable=True,
-            vlan_vid=vlan_id,
-            eth_dst='90:e2:ba:24:a2:70',
-            eth_src='00:00:00:11:22:33',
-            ip_src='192.168.1.100',
-            ip_dst='192.168.1.110'
-        )
-
-        pkt_from_p0_to_p3 = simple_tcp_packet(
-            pktlen=100,
-            dl_vlan_enable=True,
-            vlan_vid=vlan_id,
-            eth_dst='90:e2:ba:24:a2:72',
-            eth_src='00:00:00:11:22:33',
-            ip_src='192.168.1.100',
-            ip_dst='192.168.1.111'
-        )
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
-        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
-
-        # disconnect between spine0 and leaf1
-        spine0_port_50 = DevicePort(50, cfg.spine0['id'])
-        spine0_port_50.link_down()
-
-        utils.wait_for_system_stable()
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
-        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
-
-        # resume connection between spine0 and leaf1
-        spine0_port_50.link_up()
-
-        # disconnection between spine1 and leaf1
-        spine1_port_50 = DevicePort(50, cfg.spine1['id'])
-        spine1_port_50.link_down()
-
-        utils.wait_for_system_stable()
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
-        verify_packet(self, str(pkt_from_p0_to_p1), ports[1])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p2))
-        verify_packet(self, str(pkt_from_p0_to_p2), ports[2])
-
-        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
-        verify_no_packet(self, str(pkt_from_p0_to_p3), ports[3])
-
-        # resume connection between spine1 and leaf1
-        spine1_port_50.link_up()
-
-        t1.destroy()
-
-        wait_for_system_stable()
 @disabled
 class SegmentConnectionWithVxlanType(Tenants):
     """

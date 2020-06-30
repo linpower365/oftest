@@ -108,7 +108,8 @@ CONFIG_DEFAULT = {
     "random_order"       : False,
     "dump_packet"        : True,
     "cicada_poject"      : False,
-    
+    "test_topology"      : "clos",
+
     # Other configuration
     "port_map"           : {},
 }
@@ -232,6 +233,7 @@ prefixing them with the '^' character.
                       help="Dump packet content on log when verify packet fail")
     group.add_option("--cicada_poject", action="store_true",
                       help="True verify Cicada behavior, False verify AOS behaviro")
+    group.add_option("--test-topology", help="Type of test topology")
     parser.add_option_group(group)
 
     # Might need this if other parsers want command line

@@ -34,6 +34,7 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
+
 class DisconnectionDeviceException(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -60,6 +61,7 @@ class DisconnectionDeviceException(base_tests.SimpleDataPlane):
         wait_for_seconds(60)
 
         verify_func()
+
 
 class TenantLogicalRouterConfig1(DisconnectionDeviceException):
     """
@@ -94,6 +96,7 @@ class TenantLogicalRouterConfig1(DisconnectionDeviceException):
 
         t1.destroy()
 
+
 class TenantLogicalRouterConfig2(DisconnectionDeviceException):
     """
     Test tenant logical router config for disconnection of device exception
@@ -126,8 +129,10 @@ class TenantLogicalRouterConfig2(DisconnectionDeviceException):
         cfg.host2['ip'] = '192.168.28.30'
 
         def test_by_packet():
-            master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-            send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+            master_spine = get_master_spine(
+                self.dataplane, cfg.host2, s2_ip, ports[2])
+            send_icmp_echo_request(
+                self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
             pkt_from_p0_to_p2 = simple_tcp_packet(
                 pktlen=68,
@@ -159,6 +164,7 @@ class TenantLogicalRouterConfig2(DisconnectionDeviceException):
 
         lrouter.destroy()
         t1.destroy()
+
 
 class DHCPRelayConfig(DisconnectionDeviceException):
     """
@@ -201,35 +207,44 @@ class DHCPRelayConfig(DisconnectionDeviceException):
         cfg.dhcp_server['ip'] = dhcp_server_ip
 
         def test_by_packet():
-            spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
-            send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+            spine = get_master_spine(
+                self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+            send_icmp_echo_request(
+                self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
             dhcp_pkt = DHCP_PKT()
 
             # verify dhcp discover
             dhcp_discover = dhcp_pkt.generate_discover_pkt(cfg.host0)
-            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
 
             self.dataplane.send(ports[0], str(dhcp_discover))
             verify_packet(self, str(expected_dhcp_discover), ports[3])
 
             # verify dhcp offer
-            dhcp_offer = dhcp_pkt.generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_offer = dhcp_pkt.generate_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_offer))
             verify_packet(self, str(expected_dhcp_offer), ports[0])
 
             # verify dhcp request
-            dhcp_request = dhcp_pkt.generate_request_pkt(cfg.dhcp_server, cfg.host0, allocated_ip)
-            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+            dhcp_request = dhcp_pkt.generate_request_pkt(
+                cfg.dhcp_server, cfg.host0, allocated_ip)
+            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[0], str(dhcp_request))
             verify_packet(self, str(expected_dhcp_request), ports[3])
 
             # verify dhcp ack
-            dhcp_ack = dhcp_pkt.generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_ack = dhcp_pkt.generate_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_ack))
             verify_packet(self, str(expected_dhcp_ack), ports[0])
@@ -241,6 +256,7 @@ class DHCPRelayConfig(DisconnectionDeviceException):
         dhcp_relay.destroy()
         lrouter.destroy()
         t1.destroy()
+
 
 class SPANConfig(DisconnectionDeviceException):
     """

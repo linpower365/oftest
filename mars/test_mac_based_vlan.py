@@ -46,6 +46,7 @@ class MacBasedVlan(base_tests.SimpleDataPlane):
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
+
 class BasicInSameLeaf(MacBasedVlan):
     """
     Test MAC based VLAN basic feature in same leaf
@@ -81,6 +82,7 @@ class BasicInSameLeaf(MacBasedVlan):
         verify_packet(self, pkt_from_p0_to_p1, ports[1])
 
         t1.destroy()
+
 
 class BasicInDifferentLeaf(MacBasedVlan):
     """
@@ -120,6 +122,7 @@ class BasicInDifferentLeaf(MacBasedVlan):
         verify_packet(self, pkt_from_p0_to_p2, ports[2])
 
         t1.destroy()
+
 
 class BasicWithDifferentPort(MacBasedVlan):
     """
@@ -163,6 +166,7 @@ class BasicWithDifferentPort(MacBasedVlan):
 
         t1.destroy()
 
+
 class RoutingInSameLeaf(MacBasedVlan):
     """
     Test MAC based VLAN with routing in same leaf
@@ -199,8 +203,10 @@ class RoutingInSameLeaf(MacBasedVlan):
         cfg.host0['ip'] = '192.168.110.30'
         cfg.host1['ip'] = '192.168.120.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1,
+                               master_spine, s2_ip, ports[1])
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
@@ -228,6 +234,7 @@ class RoutingInSameLeaf(MacBasedVlan):
 
         lrouter.destroy()
         t1.destroy()
+
 
 class RoutingInDifferentLeaf(MacBasedVlan):
     """
@@ -265,8 +272,10 @@ class RoutingInDifferentLeaf(MacBasedVlan):
         cfg.host0['ip'] = '192.168.130.30'
         cfg.host3['ip'] = '192.168.140.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host3, s2_ip, ports[3])
-        send_icmp_echo_request(self.dataplane, cfg.host3, master_spine, s2_ip, ports[3])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host3, s2_ip, ports[3])
+        send_icmp_echo_request(self.dataplane, cfg.host3,
+                               master_spine, s2_ip, ports[3])
 
         pkt_from_p0_to_p3 = simple_tcp_packet(
             pktlen=68,
@@ -291,6 +300,7 @@ class RoutingInDifferentLeaf(MacBasedVlan):
         )
 
         verify_packet(self, str(pkt_expected), ports[3])
+
 
 class RebootLeaf(MacBasedVlan):
     """
@@ -346,6 +356,7 @@ class RebootLeaf(MacBasedVlan):
 
         t1.destroy()
 
+
 class RestartMars(MacBasedVlan):
     """
     Test MAC based VLAN after restarting Mars
@@ -394,4 +405,3 @@ class RestartMars(MacBasedVlan):
         wait_for_seconds(100)
 
         test_by_packet()
-

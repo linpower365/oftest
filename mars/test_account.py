@@ -60,53 +60,55 @@ class AddAndDeleteUser(base_tests.SimpleDataPlane):
         username = 'test' + str(int(time.time()))
 
         # add a user
-        payload = '{"user_name": "' + username + '",  "groups": ["admingroup" ], "password": "testPassword"}'
+        payload = '{"user_name": "' + username + \
+            '",  "groups": ["admingroup" ], "password": "testPassword"}'
         response = requests.post(URL+"useraccount/v1",
-          headers=POST_HEADER, data=payload
-        )
+                                 headers=POST_HEADER, data=payload
+                                 )
         assert(response.status_code == 200)
 
         response = requests.get(
-          URL+"useraccount/v1/group/admingroup", headers=GET_HEADER
+            URL+"useraccount/v1/group/admingroup", headers=GET_HEADER
         )
         assert(response.status_code == 200)
         assert(username in response.json()['users'])
 
         # delete the user
         response = requests.delete(
-          URL+"useraccount/v1/{}".format(username), headers=GET_HEADER
+            URL+"useraccount/v1/{}".format(username), headers=GET_HEADER
         )
         assert(response.status_code == 200)
 
         response = requests.get(
-          URL+"useraccount/v1/group/admingroup", headers=GET_HEADER
+            URL+"useraccount/v1/group/admingroup", headers=GET_HEADER
         )
         assert(response.status_code == 200)
         assert(username not in response.json()['users'])
 
 
 class EmptyQuery(base_tests.SimpleDataPlane):
-  """
-  Test query empty data or wrong input
-  """
-  def runTest(self):
+    """
+    Test query empty data or wrong input
+    """
 
-    # query not exist user
-    response = requests.get(
-      URL+"useraccount/v1/notexistuser999", headers=GET_HEADER
-    )
-    assert(response.status_code == 200)
-    assert(len(response.json()) == 0)
+    def runTest(self):
 
-    # query not exist group
-    response = requests.get(
-      URL + "useraccount/v1/group/notexistgroup999", headers=GET_HEADER
-    )
-    assert(response.status_code == 200)
-    assert(len(response.json()["users"]) == 0)
+        # query not exist user
+        response = requests.get(
+            URL+"useraccount/v1/notexistuser999", headers=GET_HEADER
+        )
+        assert(response.status_code == 200)
+        assert(len(response.json()) == 0)
 
-    # delete not exist user
-    response = requests.delete(
-      URL+'useraccount/v1/notexistgroup999', headers=GET_HEADER
-    )
-    assert(response.status_code == 200)
+        # query not exist group
+        response = requests.get(
+            URL + "useraccount/v1/group/notexistgroup999", headers=GET_HEADER
+        )
+        assert(response.status_code == 200)
+        assert(len(response.json()["users"]) == 0)
+
+        # delete not exist user
+        response = requests.delete(
+            URL+'useraccount/v1/notexistgroup999', headers=GET_HEADER
+        )
+        assert(response.status_code == 200)

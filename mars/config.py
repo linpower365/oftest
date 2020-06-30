@@ -22,12 +22,13 @@ INI_FILE = "auto-test.ini"
 if socket.gethostname() == 'AutoTestMars':
     INI_FILE = "auto-test.ini"
 elif socket.gethostname() == 'Mars-charles':
-    INI_FILE = "mars-charles.ini"
+    INI_FILE = "mars-charles-58.ini"
 elif socket.gethostname() == 'ubuntu-mars':
     INI_FILE = "mars-mini-pc.ini"
 
 print 'Test Host: ' + socket.gethostname()
 print 'Test INI : ' + INI_FILE
+print 'Test Topology : ' + config['test_topology']
 
 conf = ConfigParser.ConfigParser()
 conf.read('./mars/ini/' + INI_FILE)
@@ -35,6 +36,7 @@ conf.read('./mars/ini/' + INI_FILE)
 # Remote Power id/pw
 REMOTE_POWER_USERNAME = 'snmp'
 REMOTE_POWER_PASSWORD = '1234'
+
 
 def create_device(conf, device_name):
     device = {
@@ -53,6 +55,7 @@ def create_device(conf, device_name):
     }
 
     return device
+
 
 def create_remote_power(conf, rp_name):
     remote_power = {
@@ -75,6 +78,7 @@ def create_remote_power(conf, rp_name):
 # spine1_power = create_remote_power(conf, 'spine1')
 # leaf0_power = create_remote_power(conf, 'leaf0')
 # leaf1_power = create_remote_power(conf, 'leaf1')
+
 
 # dynamically create devices and remote power
 for device in conf.sections():
@@ -123,6 +127,13 @@ dhcp_server = {
     'ip': ''
 }
 
-devices = [spine0, spine1, leaf0, leaf1]
-spines = [spine0, spine1]
+total_dut = [spine0, spine1, leaf0, leaf1]
+
+if config['test_topology'] == 'scatter':
+    devices = [spine0, leaf0, leaf1]
+    spines = [spine0]
+else:
+    devices = total_dut
+    spines = [spine0, spine1]
+
 leaves = [leaf0, leaf1]

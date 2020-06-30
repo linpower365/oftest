@@ -42,6 +42,7 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 
+
 class TenantLogicalRouter(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -52,6 +53,7 @@ class TenantLogicalRouter(base_tests.SimpleDataPlane):
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
 
+
 class Getter(TenantLogicalRouter):
     """
     Test tenantlogicalrouter GET method
@@ -59,7 +61,8 @@ class Getter(TenantLogicalRouter):
     """
 
     def runTest(self):
-        response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
+        response = requests.get(
+            URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
 
 
@@ -76,6 +79,7 @@ class AddAndDelete(TenantLogicalRouter):
         - DELETE tenantlogicalrouter/v1/tenants/<tenant_name>/<tenantlogicalrouter_name>
         - DELETE v1/tenants/v1/<tenant_name>
     """
+
     def runTest(self):
         # add a new tenant
         tenant_name = 'testTenant' + str(int(time.time()))
@@ -83,7 +87,8 @@ class AddAndDelete(TenantLogicalRouter):
             "name": tenant_name,
             "type": "Normal"
         }
-        response = requests.post(URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+        response = requests.post(
+            URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
         assert(response.status_code == 200)
 
         # check if tenant add succuss
@@ -104,11 +109,13 @@ class AddAndDelete(TenantLogicalRouter):
                 "192.168.3.3"
             ]
         }
-        response = requests.post(URL+'v1/tenants/v1/'+tenant_name+'/segments/', headers=POST_HEADER, json=payload)
+        response = requests.post(
+            URL+'v1/tenants/v1/'+tenant_name+'/segments/', headers=POST_HEADER, json=payload)
         assert(response.status_code == 200)
 
         # check if segment add success
-        response = requests.get(URL+"v1/tenants/v1/segments",headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/tenants/v1/segments", headers=GET_HEADER)
         exist = False
         for item in response.json()['segments']:
             if item['segment_name'] == 'testsegment001':
@@ -116,19 +123,20 @@ class AddAndDelete(TenantLogicalRouter):
                 break
         assert(exist)
 
-
         # add new tenantlogicalrouter
         payload = {
             "name": "tenantlogicalrouter01",
-            "interfaces":[
+            "interfaces": [
                 "testsegment001"
             ]
         }
-        response = requests.post(URL+"tenantlogicalrouter/v1/tenants/"+tenant_name, headers=POST_HEADER, json=payload)
+        response = requests.post(
+            URL+"tenantlogicalrouter/v1/tenants/"+tenant_name, headers=POST_HEADER, json=payload)
         assert(response.status_code == 200)
 
         # check if tenantlogicalrouter add successfully
-        response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
+        response = requests.get(
+            URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
         exist = False
         for item in response.json()['routers']:
             if item['name'] == 'tenantlogicalrouter01':
@@ -137,19 +145,23 @@ class AddAndDelete(TenantLogicalRouter):
         assert(True)
 
         # delete segment
-        response = requests.delete(URL+ 'v1/tenants/v1/'+tenant_name+'/segments/testsegment001', headers=GET_HEADER)
+        response = requests.delete(
+            URL + 'v1/tenants/v1/'+tenant_name+'/segments/testsegment001', headers=GET_HEADER)
         assert(response.status_code == 200)
 
         # delete tenantlogicalrouter
-        response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/'+tenant_name+'/tenantlogicalrouter01', headers=GET_HEADER)
+        response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/' +
+                                   tenant_name+'/tenantlogicalrouter01', headers=GET_HEADER)
         assert(response.status_code == 200)
 
         # delete test tenant
-        response = requests.delete(URL+'v1/tenants/v1/'+tenant_name, headers=GET_HEADER)
+        response = requests.delete(
+            URL+'v1/tenants/v1/'+tenant_name, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         # check segment delete successfully
-        response = requests.get(URL+"v1/tenants/v1/segments",headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/tenants/v1/segments", headers=GET_HEADER)
         assert(response.status_code == 200)
         removed = True
         for item in response.json()['segments']:
@@ -158,7 +170,8 @@ class AddAndDelete(TenantLogicalRouter):
         assert(removed)
 
         # check tenantlogicalrouter delete successfully
-        response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
+        response = requests.get(
+            URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
         assert(response.status_code == 200)
         removed = True
         for item in response.json()['routers']:
@@ -180,18 +193,22 @@ class NotExist(TenantLogicalRouter):
     """
     Test not exist data
     """
+
     def runTest(self):
         # add new tenantlogicalrouter on not exist tenant
         payload = {
             "name": "tenantlogicalrouter01"
         }
-        response = requests.post(URL+"tenantlogicalrouter/v1/tenants/testTenantNotExist999/", headers=POST_HEADER, json=payload)
+        response = requests.post(
+            URL+"tenantlogicalrouter/v1/tenants/testTenantNotExist999/", headers=POST_HEADER, json=payload)
         assert(response.status_code == 400)
 
         # list tenantlogicalrouters which tenant is not exist
-        response = requests.get(URL+"tenantlogicalrouter/v1/tenants/testTenantNotExist999/", headers=GET_HEADER)
+        response = requests.get(
+            URL+"tenantlogicalrouter/v1/tenants/testTenantNotExist999/", headers=GET_HEADER)
         assert(response.status_code == 200)
         assert(len(response.json()['routers']) == 0)
+
 
 class OneSegmentWithoutIPaddressInSameLeaf(TenantLogicalRouter):
     '''
@@ -223,6 +240,7 @@ class OneSegmentWithoutIPaddressInSameLeaf(TenantLogicalRouter):
         self.dataplane.send(ports[0], pkt_from_p0_to_p1)
         verify_packet(self, pkt_from_p0_to_p1, ports[1])
 
+
 class OneSegmentWithoutIPaddressInDifferentLeaf(TenantLogicalRouter):
     '''
     Test connection in a segment without IP address in different leaf
@@ -250,6 +268,7 @@ class OneSegmentWithoutIPaddressInDifferentLeaf(TenantLogicalRouter):
 
         self.dataplane.send(ports[0], pkt_from_p0_to_p2)
         verify_packet(self, pkt_from_p0_to_p2, ports[2])
+
 
 class TwoSegmentsWithSameTenantInSameLeaf(TenantLogicalRouter):
     '''
@@ -285,8 +304,10 @@ class TwoSegmentsWithSameTenantInSameLeaf(TenantLogicalRouter):
             cfg.host0['ip'] = '192.168.10.10'
             cfg.host1['ip'] = '192.168.20.20'
 
-            master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
-            send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+            master_spine = get_master_spine(
+                self.dataplane, cfg.host1, s2_ip, ports[1])
+            send_icmp_echo_request(
+                self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
 
             pkt_from_p0_to_p1 = simple_tcp_packet(
                 pktlen=68,
@@ -320,6 +341,7 @@ class TwoSegmentsWithSameTenantInSameLeaf(TenantLogicalRouter):
 
             # clear queue packet
             self.dataplane.flush()
+
 
 class TwoSegmentsWithSameTenentInDifferentLeaf(TenantLogicalRouter):
     '''
@@ -355,8 +377,10 @@ class TwoSegmentsWithSameTenentInDifferentLeaf(TenantLogicalRouter):
             cfg.host0['ip'] = '192.168.10.30'
             cfg.host2['ip'] = '192.168.20.30'
 
-            master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-            send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+            master_spine = get_master_spine(
+                self.dataplane, cfg.host2, s2_ip, ports[2])
+            send_icmp_echo_request(
+                self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
             pkt_from_p0_to_p2 = simple_tcp_packet(
                 pktlen=68,
@@ -390,6 +414,7 @@ class TwoSegmentsWithSameTenentInDifferentLeaf(TenantLogicalRouter):
 
             # clear queue packet
             self.dataplane.flush()
+
 
 class TwoSegmentsForDifferentTenantWithoutSystemTenantInSameLeaf(TenantLogicalRouter):
     '''
@@ -446,6 +471,7 @@ class TwoSegmentsForDifferentTenantWithoutSystemTenantInSameLeaf(TenantLogicalRo
         t1.destroy()
         t2.destroy()
 
+
 class TwoSegmentsForDifferentTenantWithSystemTenantInSameLeaf(TenantLogicalRouter):
     '''
     Test logical router with 2 segments in same leaf and different tenent.
@@ -499,8 +525,10 @@ class TwoSegmentsForDifferentTenantWithSystemTenantInSameLeaf(TenantLogicalRoute
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host1['ip'] = '192.168.20.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1,
+                               master_spine, s2_ip, ports[1])
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
             pktlen=68,
@@ -532,6 +560,7 @@ class TwoSegmentsForDifferentTenantWithSystemTenantInSameLeaf(TenantLogicalRoute
         lrouter_r2.destroy()
         lrouter_system.destroy()
         system_tenant.destroy()
+
 
 class TwoSegmentsForDifferentTenantWithoutSystemTenantInDifferentLeaf(TenantLogicalRouter):
     '''
@@ -575,8 +604,10 @@ class TwoSegmentsForDifferentTenantWithoutSystemTenantInDifferentLeaf(TenantLogi
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host2['ip'] = '192.168.20.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host2, s2_ip, ports[2], True)
+        send_icmp_echo_request(self.dataplane, cfg.host2,
+                               master_spine, s2_ip, ports[2])
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
@@ -605,6 +636,7 @@ class TwoSegmentsForDifferentTenantWithoutSystemTenantInDifferentLeaf(TenantLogi
 
         t1.destroy()
         t2.destroy()
+
 
 class TwoSegmentsForDifferentTenantWithSystemTenantInDifferentLeaf(TenantLogicalRouter):
     '''
@@ -659,8 +691,10 @@ class TwoSegmentsForDifferentTenantWithSystemTenantInDifferentLeaf(TenantLogical
         cfg.host0['ip'] = '192.168.10.30'
         cfg.host2['ip'] = '192.168.20.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2,
+                               master_spine, s2_ip, ports[2])
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
             pktlen=68,
@@ -693,6 +727,7 @@ class TwoSegmentsForDifferentTenantWithSystemTenantInDifferentLeaf(TenantLogical
         t1.destroy()
         t2.destroy()
         system_tenant.destroy()
+
 
 class StaticRoute(TenantLogicalRouter):
     '''
@@ -730,8 +765,10 @@ class StaticRoute(TenantLogicalRouter):
         cfg.host0['ip'] = '192.168.50.10'
         cfg.host1['ip'] = '10.10.10.10'
 
-        master_spine = get_master_spine(self.dataplane, cfg.external_router0, s1_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.external_router0, s1_ip, ports[1])
+        send_icmp_echo_request(
+            self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
 
         wait_for_system_stable()
 
@@ -765,6 +802,7 @@ class StaticRoute(TenantLogicalRouter):
         t1.destroy()
 
         wait_for_system_process()
+
 
 class PolicyRouteInSameLeaf(TenantLogicalRouter):
     '''
@@ -801,7 +839,7 @@ class PolicyRouteInSameLeaf(TenantLogicalRouter):
             .ingress_segments(['s1'])
             .ingress_ports([
                 '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['portA'].number)
-                ])
+            ])
             .action('permit')
             .sequence_no('1')
             .protocols(['tcp'])
@@ -818,8 +856,10 @@ class PolicyRouteInSameLeaf(TenantLogicalRouter):
 
         wait_for_system_stable()
 
-        master_spine = get_master_spine(self.dataplane, cfg.external_router0, s1_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.external_router0, s1_ip, ports[1])
+        send_icmp_echo_request(
+            self.dataplane, cfg.external_router0, master_spine, s1_ip, ports[1])
 
         for dst_ip in [cfg.host1['ip'], '10.10.10.20']:
             pkt_from_p0_to_p1 = simple_tcp_packet(
@@ -888,7 +928,7 @@ class PolicyRouteInDifferentLeaf(TenantLogicalRouter):
             .ingress_segments(['s1'])
             .ingress_ports([
                 '{}/{}'.format(cfg.leaf0['id'], cfg.leaf0['portA'].number)
-                ])
+            ])
             .action('permit')
             .sequence_no('1')
             .protocols(['udp'])
@@ -905,8 +945,10 @@ class PolicyRouteInDifferentLeaf(TenantLogicalRouter):
 
         wait_for_system_stable()
 
-        master_spine = get_master_spine(self.dataplane, cfg.external_router1, s1_ip, ports[2])
-        send_icmp_echo_request(self.dataplane, cfg.external_router1, master_spine, s1_ip, ports[2])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.external_router1, s1_ip, ports[2])
+        send_icmp_echo_request(
+            self.dataplane, cfg.external_router1, master_spine, s1_ip, ports[2])
         self.dataplane.flush()
 
         for dst_ip in [cfg.host2['ip'], '10.10.10.50']:
@@ -983,8 +1025,10 @@ class TwoSegmentsMisEnvironment(TenantLogicalRouter):
         cfg.host0['ip'] = '192.168.10.10'
         cfg.host1['ip'] = '192.168.20.20'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1,
+                               master_spine, s2_ip, ports[1])
         self.dataplane.flush()
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
@@ -1013,8 +1057,10 @@ class TwoSegmentsMisEnvironment(TenantLogicalRouter):
 
         cfg.host2['ip'] = '192.168.20.30'
 
-        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2,
+                               master_spine, s2_ip, ports[2])
         self.dataplane.flush()
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
@@ -1043,6 +1089,7 @@ class TwoSegmentsMisEnvironment(TenantLogicalRouter):
 
         t1.destroy()
         lrouter.destroy()
+
 
 class ThreeSegmentsMisEnvironment(TenantLogicalRouter):
     """
@@ -1081,8 +1128,10 @@ class ThreeSegmentsMisEnvironment(TenantLogicalRouter):
         )
 
         # case 1
-        master_spine = get_master_spine(self.dataplane, cfg.host1, s2_ip, ports[1])
-        send_icmp_echo_request(self.dataplane, cfg.host1, master_spine, s2_ip, ports[1])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host1, s2_ip, ports[1])
+        send_icmp_echo_request(self.dataplane, cfg.host1,
+                               master_spine, s2_ip, ports[1])
         self.dataplane.flush()
 
         pkt_from_p0_to_p1 = simple_tcp_packet(
@@ -1105,8 +1154,10 @@ class ThreeSegmentsMisEnvironment(TenantLogicalRouter):
         )
 
         # case 2
-        master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-        send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host2, s2_ip, ports[2])
+        send_icmp_echo_request(self.dataplane, cfg.host2,
+                               master_spine, s2_ip, ports[2])
         self.dataplane.flush()
 
         pkt_from_p0_to_p2 = simple_tcp_packet(
@@ -1129,8 +1180,10 @@ class ThreeSegmentsMisEnvironment(TenantLogicalRouter):
         )
 
         # case 3
-        master_spine = get_master_spine(self.dataplane, cfg.host3, s3_ip, ports[3])
-        send_icmp_echo_request(self.dataplane, cfg.host3, master_spine, s3_ip, ports[3])
+        master_spine = get_master_spine(
+            self.dataplane, cfg.host3, s3_ip, ports[3])
+        send_icmp_echo_request(self.dataplane, cfg.host3,
+                               master_spine, s3_ip, ports[3])
         self.dataplane.flush()
 
         pkt_from_p0_to_p3 = simple_tcp_packet(

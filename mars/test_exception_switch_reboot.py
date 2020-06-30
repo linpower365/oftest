@@ -35,6 +35,7 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
+
 class RebootException(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -48,8 +49,8 @@ class RebootException(base_tests.SimpleDataPlane):
     def reboot_switch(self):
         rp_spine0 = RemotePower(cfg.spine0_power)
         rp_spine1 = RemotePower(cfg.spine1_power)
-        rp_leaf0  = RemotePower(cfg.leaf0_power)
-        rp_leaf1  = RemotePower(cfg.leaf1_power)
+        rp_leaf0 = RemotePower(cfg.leaf0_power)
+        rp_leaf1 = RemotePower(cfg.leaf1_power)
 
         rp_spine0.OffOn()
         rp_spine1.OffOn()
@@ -61,6 +62,7 @@ class RebootException(base_tests.SimpleDataPlane):
         links_inspect(cfg.spines, cfg.leaves)
 
         wait_for_seconds(60)
+
 
 class SpineRole(RebootException):
     """
@@ -90,6 +92,7 @@ class SpineRole(RebootException):
         assert d0.available, "d0 device's avaiable shall be true"
         assert d1.available, "d1 device's avaiable shall be true"
 
+
 class LeafRole(RebootException):
     """
     Test leaf switch reboot exception
@@ -117,6 +120,7 @@ class LeafRole(RebootException):
 
         assert d0.available, "d0 device's avaiable shall be true"
         assert d1.available, "d1 device's avaiable shall be true"
+
 
 class TenantConfig(RebootException):
     """
@@ -196,6 +200,7 @@ class TenantConfig(RebootException):
         t1.delete_segment('s1')
         t1.destroy()
 
+
 class TenantLogicalRouterConfig(RebootException):
     """
     Test tenant logical router after switch reboot
@@ -228,8 +233,10 @@ class TenantLogicalRouterConfig(RebootException):
         cfg.host2['ip'] = '192.168.25.30'
 
         def test_by_packet():
-            master_spine = get_master_spine(self.dataplane, cfg.host2, s2_ip, ports[2])
-            send_icmp_echo_request(self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
+            master_spine = get_master_spine(
+                self.dataplane, cfg.host2, s2_ip, ports[2])
+            send_icmp_echo_request(
+                self.dataplane, cfg.host2, master_spine, s2_ip, ports[2])
 
             pkt_from_p0_to_p2 = simple_tcp_packet(
                 pktlen=68,
@@ -263,6 +270,7 @@ class TenantLogicalRouterConfig(RebootException):
 
         lrouter.destroy()
         t1.destroy()
+
 
 class DHCPRelayConfig(RebootException):
     """
@@ -303,35 +311,44 @@ class DHCPRelayConfig(RebootException):
         cfg.dhcp_server['ip'] = dhcp_server_ip
 
         def test_by_packet():
-            spine = get_master_spine(self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
-            send_icmp_echo_request(self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
+            spine = get_master_spine(
+                self.dataplane, cfg.dhcp_server, s1_vlan_ip, ports[3])
+            send_icmp_echo_request(
+                self.dataplane, cfg.dhcp_server, spine, s2_vlan_ip, ports[3])
 
             dhcp_pkt = DHCP_PKT()
 
             # verify dhcp discover
             dhcp_discover = dhcp_pkt.generate_discover_pkt(cfg.host0)
-            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
+            expected_dhcp_discover = dhcp_pkt.generate_expected_discover_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip)
 
             self.dataplane.send(ports[0], str(dhcp_discover))
             verify_packet(self, str(expected_dhcp_discover), ports[3])
 
             # verify dhcp offer
-            dhcp_offer = dhcp_pkt.generate_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_offer = dhcp_pkt.generate_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_offer = dhcp_pkt.generate_expected_offer_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_offer))
             verify_packet(self, str(expected_dhcp_offer), ports[0])
 
             # verify dhcp request
-            dhcp_request = dhcp_pkt.generate_request_pkt(cfg.dhcp_server, cfg.host0, allocated_ip)
-            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
+            dhcp_request = dhcp_pkt.generate_request_pkt(
+                cfg.dhcp_server, cfg.host0, allocated_ip)
+            expected_dhcp_request = dhcp_pkt.generate_expected_request_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, s2_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[0], str(dhcp_request))
             verify_packet(self, str(expected_dhcp_request), ports[3])
 
             # verify dhcp ack
-            dhcp_ack = dhcp_pkt.generate_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
-            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            dhcp_ack = dhcp_pkt.generate_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
+            expected_dhcp_ack = dhcp_pkt.generate_expected_ack_pkt(
+                spine, cfg.dhcp_server, cfg.host0, s1_vlan_ip, allocated_ip)
 
             self.dataplane.send(ports[3], str(dhcp_ack))
             verify_packet(self, str(expected_dhcp_ack), ports[0])
@@ -345,6 +362,7 @@ class DHCPRelayConfig(RebootException):
         dhcp_relay.destroy()
         lrouter.destroy()
         t1.destroy()
+
 
 class SpanConfig(RebootException):
     """

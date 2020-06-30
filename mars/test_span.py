@@ -35,6 +35,7 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
+
 class SPANTest(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
@@ -44,6 +45,7 @@ class SPANTest(base_tests.SimpleDataPlane):
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
+
 
 class SetterAndGetter(SPANTest):
     """
@@ -67,10 +69,12 @@ class SetterAndGetter(SPANTest):
         assert(span._source['device_id'] == actual_session['src']['device_id'])
         assert(span._source['port'] == actual_session['src']['port'])
         assert(span._source['direction'] == actual_session['src']['direction'])
-        assert(span._target['device_id'] == actual_session['target']['device_id'])
+        assert(span._target['device_id'] ==
+               actual_session['target']['device_id'])
         assert(span._target['port'] == actual_session['target']['port'])
 
         span.destroy()
+
 
 class NullSPANConfig(SPANTest):
     """
@@ -147,6 +151,7 @@ class RxInSameLeaf(SPANTest):
 
             wait_for_system_process()
 
+
 class TxInSameLeaf(SPANTest):
     """
     Test SPAN uplink direction in same leaf
@@ -214,6 +219,7 @@ class TxInSameLeaf(SPANTest):
             wait_for_system_process()
 
         t1.destroy()
+
 
 class RxInDifferentLeaf(SPANTest):
     """
