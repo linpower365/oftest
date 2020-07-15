@@ -19,6 +19,7 @@ AUTH_TOKEN = 'BASIC ' + LOGIN
 GET_HEADER = {'Authorization': AUTH_TOKEN}
 POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
 DELETE_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
+PUT_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
 
 LINKS_INSPECT_RETRY_NUM_MAX = 300
 
@@ -1227,3 +1228,272 @@ class Configuration():
         response = requests.post(
             URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, headers=POST_HEADER)
         assert response.status_code == 204, 'save as boot default config fail! ' + response.text
+
+
+class StaticVLAN():
+    def __init__(self, vlan_cfg):
+        self._vlan_cfg = vlan_cfg
+
+    def delete(self, del_cfg):
+        response = requests.delete(
+            URL+'vlan/v1/vlan-config/{}/port/{}'.format(self._vlan_cfg['device-id'], del_cfg['port']), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'delete port fail! ' + response.text
+
+        return self
+
+    def get_port(self, port_id):
+        response = requests.get(
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'get ports fail! ' + response.text
+
+        for port in response.json()['ports']:
+            if port['port'] == port_id:
+                return port
+
+        return None
+
+    def build(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "ports": self._vlan_cfg['ports']
+                }
+            ]
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add static vlan fail! ' + response.text
+
+        return self
+
+
+class DynamicVLAN():
+    def __init__(self, vlan_cfg):
+        self._vlan_cfg = vlan_cfg
+
+    def enable(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "dynamicvlans": [
+                        {
+                            "port": self._vlan_cfg['dynamicvlans'][0]['port'],
+                            "dynamicVlan": "enable"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        response = requests.put(
+            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+        assert response.status_code == 200, 'Modify dynamic vlan fail! ' + response.text
+
+        return self
+
+    def disable(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "dynamicvlans": [
+                        {
+                            "port": self._vlan_cfg['dynamicvlans'][0]['port'],
+                            "dynamicVlan": "disable"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        response = requests.put(
+            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+        assert response.status_code == 200, 'Modify dynamic vlan fail! ' + response.text
+
+        return self
+
+    def get_port(self, port_id):
+        response = requests.get(
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'get ports fail! ' + response.text
+
+        for port in response.json()['ports']:
+            if port['port'] == port_id:
+                return port['dynamicVlan']
+
+        return None
+
+    def build(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "dynamicvlans": self._vlan_cfg['dynamicvlans']
+                }
+            ]
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add dynamic vlan fail! ' + response.text
+
+        return self
+
+
+class GuestVLAN():
+    def __init__(self, vlan_cfg):
+        self._vlan_cfg = vlan_cfg
+
+    def get_vlan(self):
+        response = requests.get(
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'get ports fail! ' + response.text
+
+        for port in response.json()['ports']:
+            if port['port'] == self._vlan_cfg['guestvlans'][0]['port']:
+                return port['guestVlan']
+
+        return None
+
+    def vlan(self, vlan_id):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "guestvlans": [
+                        {
+                            "port": self._vlan_cfg['guestvlans'][0]['port'],
+                            "guestVlan": vlan_id
+                        }
+                    ]
+                }
+            ]
+        }
+
+        response = requests.put(
+            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+        assert response.status_code == 200, 'Modify guest vlan fail! ' + response.text
+
+        return self
+
+    def build(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "guestvlans": self._vlan_cfg['guestvlans']
+                }
+            ]
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add guest vlan fail! ' + response.text
+
+        return self
+
+
+class VLAN():
+    def __init__(self, vlan_cfg):
+        self._vlan_cfg = vlan_cfg
+
+    def get(self, vlan_id):
+        response = requests.get(
+            URL+'vlan/v1/vlan-config/{}/vlans'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'get vlans fail! ' + response.text
+
+        for vlan in response.json()['vlans']:
+            if vlan['vlan'] == vlan_id:
+                return vlan
+
+        return None
+
+    def set(self, cfg):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "vlans": cfg
+                }
+            ]
+        }
+
+        response = requests.put(
+            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+        assert response.status_code == 200, 'Modify vlan fail! ' + response.text
+
+    def delete(self, vlan_id):
+        response = requests.delete(
+            URL+'vlan/v1/vlan-config/{}/vlan/{}'.format(self._vlan_cfg['device-id'], vlan_id), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete vlan fail! ' + response.text
+
+    def build(self):
+        payload = {
+            "devices": [
+                {
+                    "device-id": self._vlan_cfg['device-id'],
+                    "vlans": self._vlan_cfg['vlans']
+                }
+            ]
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add vlan fail! ' + response.text
+
+        return self
+
+
+class VoiceVLAN():
+    def __init__(self, voice_vlan_cfg):
+        self._voice_vlan_cfg = voice_vlan_cfg
+
+    def set_oui(self, oui_cfg):
+        payload = {
+            "ouis": oui_cfg
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add voice vlan oui fail! ' + response.text
+
+        return self
+
+    def set_ports(self, ports_cfg):
+        payload = {
+            "ports": ports_cfg
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add voice vlan ports fail! ' + response.text
+
+        return self
+
+    def get(self):
+        response = requests.get(
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get voice vlan fail! ' + response.text
+
+        return response.json()
+
+    def delete(self):
+        response = requests.delete(
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=GET_HEADER)
+        assert response.status_code == 200, 'Delete voice vlan fail! ' + response.text
+
+        return self
+
+    def build(self):
+        payload = {
+            "basic": self._voice_vlan_cfg['basic']
+        }
+
+        response = requests.post(
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add voice vlan fail! ' + response.text
+
+        return self
