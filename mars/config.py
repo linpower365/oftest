@@ -22,7 +22,7 @@ INI_FILE = "auto-test.ini"
 if socket.gethostname() == 'AutoTestMars':
     INI_FILE = "auto-test.ini"
 elif socket.gethostname() == 'Mars-charles':
-    INI_FILE = "mars-charles.ini"
+    INI_FILE = "mars-charles-58.ini"
 elif socket.gethostname() == 'ubuntu-mars':
     INI_FILE = "mars-mini-pc.ini"
 
@@ -52,6 +52,8 @@ def create_device(conf, device_name):
         'mgmtPort': conf.get(device_name, 'mgmtPort'),
         'front_port_A': int(conf.get(device_name, 'front_port_A')),
         'front_port_B': int(conf.get(device_name, 'front_port_B')),
+        'front_port_C': int(conf.get(device_name, 'front_port_C')),
+        'front_port_D': int(conf.get(device_name, 'front_port_D')),
     }
 
     return device
@@ -88,25 +90,41 @@ for device in conf.sections():
 host0 = {
     'id': 'host0',
     'mac': '00:00:01:00:00:01',
-    'ip': ''
+    'ip': '',
+    'mgmt_ip': '192.168.40.117',
+    'username': 'mars',
+    'password': 'accton',
+    'nic_name': 'enp1s0'
 }
 
 host1 = {
     'id': 'host1',
     'mac': '00:00:01:00:00:02',
-    'ip': ''
+    'ip': '',
+    'mgmt_ip': '192.168.40.118',
+    'username': 'mars',
+    'password': 'accton',
+    'nic_name': 'enp1s0'
 }
 
 host2 = {
     'id': 'host2',
     'mac': '00:00:01:00:00:03',
-    'ip': ''
+    'ip': '',
+    'mgmt_ip': '192.168.40.63',
+    'username': 'mars',
+    'password': 'accton',
+    'nic_name': 'enp1s0'
 }
 
 host3 = {
     'id': 'host3',
     'mac': '00:00:01:00:00:04',
-    'ip': ''
+    'ip': '',
+    'mgmt_ip': '192.168.40.113',
+    'username': 'mars',
+    'password': 'accton',
+    'nic_name': 'enp6s16'
 }
 
 external_router0 = {

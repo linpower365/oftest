@@ -7,6 +7,8 @@ import base64
 import requests
 import config as cfg
 import oftest
+import paramiko
+import re
 from oftest.testutils import *
 from telnetlib import Telnet
 from scapy.layers.l2 import *
@@ -34,6 +36,42 @@ def wait_for_system_process():
 
 def wait_for_seconds(sec):
     time.sleep(sec)
+
+
+def route_add(host, subnet, gateway):
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(host['mgmt_ip'], 22, username=host['username'],
+                   password=host['password'], timeout=5)
+    stdin, stdout, stderr = client.exec_command(
+        'sudo route add -net {}/24 gw {}'.format(subnet, gateway))
+    client.close()
+
+
+def ping_test(host, target_ip, debug=False):
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(host['mgmt_ip'], 22, username=host['username'],
+                   password=host['password'], timeout=30)
+    stdin, stdout, stderr = client.exec_command(
+        'ping -c 20 ' + target_ip)
+    ping_result = stdout.read()
+    client.close()
+
+    if debug == True:
+        print(ping_result)
+
+    return ping_result
+
+
+def ping_verify(expected_str, content, debug=False):
+    if debug == True:
+        print(content)
+
+    if re.search(expected_str, content):
+        return True
+    else:
+        return False
 
 
 def get_master_spine(dataplane, sender, target_ip, port, debug=False, count=5):
@@ -163,6 +201,16 @@ def port_configuration():
         .tagged(False)
         .nos(cfg.leaf0['nos'])
     )
+    cfg.leaf0['portC'] = (
+        Port(cfg.leaf0['front_port_C'])
+        .tagged(False)
+        .nos(cfg.leaf0['nos'])
+    )
+    cfg.leaf0['portD'] = (
+        Port(cfg.leaf0['front_port_D'])
+        .tagged(False)
+        .nos(cfg.leaf0['nos'])
+    )
     cfg.leaf1['portA'] = (
         Port(cfg.leaf1['front_port_A'])
         .tagged(False)
@@ -173,6 +221,28 @@ def port_configuration():
         .tagged(False)
         .nos(cfg.leaf1['nos'])
     )
+    cfg.leaf1['portC'] = (
+        Port(cfg.leaf1['front_port_C'])
+        .tagged(False)
+        .nos(cfg.leaf1['nos'])
+    )
+    cfg.leaf1['portD'] = (
+        Port(cfg.leaf1['front_port_D'])
+        .tagged(False)
+        .nos(cfg.leaf1['nos'])
+    )
+
+
+def testhost_configuration():
+    for host in [cfg.host0, cfg.host1, cfg.host2, cfg.host3]:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(host['mgmt_ip'], 22, username=host['username'],
+                       password=host['password'], timeout=10)
+        stdin, stdout, stderr = client.exec_command(
+            'sh reset_route.sh ' + host['nic_name'] + ' ' + host['ip'])
+        # print(stdout.read())
+        client.close()
 
 
 def config_exists(device):
