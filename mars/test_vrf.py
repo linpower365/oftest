@@ -37,12 +37,6 @@ from oftest import config
 from oftest.testutils import *
 from utils import *
 
-URL = cfg.API_BASE_URL
-LOGIN = cfg.LOGIN
-AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
-
 
 class VRF(base_tests.SimpleDataPlane):
     def setUp(self):

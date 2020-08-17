@@ -22,7 +22,7 @@ INI_FILE = "auto-test.ini"
 if socket.gethostname() == 'AutoTestMars':
     INI_FILE = "auto-test.ini"
 elif socket.gethostname() == 'Mars-charles':
-    INI_FILE = "mars-charles-58.ini"
+    INI_FILE = "mars-charles.ini"
 elif socket.gethostname() == 'ubuntu-mars':
     INI_FILE = "mars-mini-pc.ini"
 

@@ -172,13 +172,14 @@ def setup_devices():
 
 
 def setup_configuration():
-    check_license()
+    # check_license()
 
     setup_power()
     setup_devices()
 
     if oftest.config['test_topology'] == 'scatter':
         clear_span()
+        clear_traffic_segmentation()
     else:
         clear_tenant()
         clear_uplink_segment()
@@ -387,6 +388,18 @@ def clear_span():
             assert response.status_code == 200, 'Destroy SAPN session fail ' + response.text
 
 
+def clear_traffic_segmentation():
+    response = requests.get(
+        URL+"trafficsegment/v1/sessions", headers=GET_HEADER)
+    assert(response.status_code == 200)
+
+    if 'sessions' in response.json():
+        for session in response.json()['sessions']:
+            response = requests.delete(
+                URL+'trafficsegment/v1/sessions/{}/{}'.format(session['deviceId'], session['sessionId']), headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete traffic segmentation fail! ' + response.text
+
+
 def clear_dhcp_relay():
     response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
     assert response.status_code == 200, 'Get DHCP relay fail! ' + response.text
@@ -448,6 +461,53 @@ def links_inspect(spines, leaves, debug=False, second=0, fail_stop=False):
                 else:
                     while match:
                         total_link.append(match.pop())
+
+        if not fail_stop:
+            if len(total_link) != total_link_count:
+                wait_for_seconds(1)
+                retry_count += 1
+                continue
+
+        if debug:
+            print 'len(total_link) = {}'.format(len(total_link))
+            print("--- %s seconds ---" % (time.time() - start_time))
+
+        keep_test = False
+
+    assert retry_count < LINKS_INSPECT_RETRY_NUM_MAX, 'Link inspect takes too much time'
+
+
+def links_inspect2(links, debug=False, second=0, fail_stop=False):
+    start_time = time.time()
+
+    wait_for_seconds(second)
+    keep_test = True
+    retry_count = 0
+
+    while keep_test and retry_count < LINKS_INSPECT_RETRY_NUM_MAX:
+        response = requests.get(URL+"v1/links", headers=GET_HEADER)
+        assert(response.status_code == 200)
+
+        # bidirection link count
+        total_link_count = len(links)*2
+
+        total_link = []
+
+        # check the connection between spine and leaf
+        for nodeA, nodeB in links:
+            match = [
+                link for link in response.json()['links']
+                if ((link['src']['device'] == nodeA['id'] and link['dst']['device'] == nodeB['id']) or
+                    (link['dst']['device'] == nodeA['id']
+                     and link['src']['device'] == nodeB['id']))
+            ]
+
+            if fail_stop:
+                assert match, 'The connection is broken between ' + \
+                    spine['id'] + ' and ' + leaf['id']
+            else:
+                while match:
+                    total_link.append(match.pop())
 
         if not fail_stop:
             if len(total_link) != total_link_count:
@@ -1552,7 +1612,7 @@ class VoiceVLAN():
 
     def delete(self):
         response = requests.delete(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=DELETE_HEADER)
         assert response.status_code == 200, 'Delete voice vlan fail! ' + response.text
 
         return self
@@ -1565,5 +1625,52 @@ class VoiceVLAN():
         response = requests.post(
             URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
         assert response.status_code == 200, 'Add voice vlan fail! ' + response.text
+
+        return self
+
+
+class TrafficSegmentation():
+    def __init__(self, device_id):
+        self._devices_id = device_id
+
+    def session(self, session_id):
+        self._session_id = session_id
+
+        return self
+
+    def uplinks(self, port_list):
+        self._uplinks = port_list
+
+        return self
+
+    def downlinks(self, port_list):
+        self._downlinks = port_list
+
+        return self
+
+    def get(self):
+        response = requests.get(
+            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get traffic segmentation fail! ' + response.text
+
+        return response.json()
+
+    def delete(self):
+        response = requests.delete(
+            URL+'trafficsegment/v1/sessions/{}/{}'.format(self._devices_id, self._session_id), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete traffic segmentation fail! ' + response.text
+
+        return self
+
+    def build(self):
+        payload = {
+            "sessionId": self._session_id,
+            "uplinks": self._uplinks,
+            "downlinks": self._downlinks
+        }
+
+        response = requests.post(
+            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add traffic segmentation fail! ' + response.text
 
         return self
