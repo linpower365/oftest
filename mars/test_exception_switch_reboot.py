@@ -412,3 +412,68 @@ class SpanConfig(RebootException):
         test_by_packet()
 
         span.destroy()
+
+
+class LogicalPortConfig(RebootException):
+    """
+    Test logical port config after switch reboot
+    """
+
+    def runTest(self):
+        lp1 = (
+            LogicalPort('lp1')
+            .group(1)
+            .members([
+                {"device_id": cfg.leaf0['id'], "port": 15},
+                {"device_id": cfg.leaf0['id'], "port": 16}
+            ])
+            .build()
+        )
+
+        wait_for_seconds(2)
+
+        sw_lp1 = SwitchLogicalPort(cfg.leaf0)
+        switch_actual_lp1 = sw_lp1.get_portchannel(1)['result']
+
+        assert(switch_actual_lp1['id'] == 1)
+        assert(set(switch_actual_lp1['members']) == set([15, 16]))
+
+        lp2 = (
+            LogicalPort('lp2')
+            .group(2)
+            .members([
+                {"device_id": cfg.leaf1['id'], "port": 1},
+                {"device_id": cfg.leaf1['id'], "port": 2},
+                {"device_id": cfg.leaf1['id'], "port": 3},
+                {"device_id": cfg.leaf1['id'], "port": 4},
+                {"device_id": cfg.leaf1['id'], "port": 5},
+                {"device_id": cfg.leaf1['id'], "port": 6},
+                {"device_id": cfg.leaf1['id'], "port": 7},
+                {"device_id": cfg.leaf1['id'], "port": 8}
+            ])
+            .build()
+        )
+
+        wait_for_seconds(2)
+
+        sw_lp2 = SwitchLogicalPort(cfg.leaf1)
+        switch_actual_lp2 = sw_lp2.get_portchannel(2)['result']
+
+        assert(switch_actual_lp2['id'] == 2)
+        assert(set(switch_actual_lp2['members'])
+               == set([1, 2, 3, 4, 5, 6, 7, 8]))
+
+        self.reboot_switch()
+
+        sw_lp1_reboot = SwitchLogicalPort(cfg.leaf0)
+        switch_actual_lp1_reboot = sw_lp1_reboot.get_portchannel(1)['result']
+
+        assert(switch_actual_lp1_reboot['id'] == 1)
+        assert(set(switch_actual_lp1_reboot['members']) == set([15, 16]))
+
+        sw_lp2_reboot = SwitchLogicalPort(cfg.leaf1)
+        switch_actual_lp2_reboot = sw_lp2_reboot.get_portchannel(2)['result']
+
+        assert(switch_actual_lp2_reboot['id'] == 2)
+        assert(set(switch_actual_lp2_reboot['members'])
+               == set([1, 2, 3, 4, 5, 6, 7, 8]))

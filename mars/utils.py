@@ -1674,3 +1674,75 @@ class TrafficSegmentation():
         assert response.status_code == 200, 'Add traffic segmentation fail! ' + response.text
 
         return self
+
+
+class LogicalPort():
+    def __init__(self, name):
+        self._name = name
+
+    def mlag(self, vlaue=False):
+        self._mlag = vlaue
+
+        return self
+
+    def group(self, group_id):
+        self._group_id = group_id
+
+        return self
+
+    def members(self, member_list):
+        self._member_list = member_list
+
+        return self
+
+    def get(self):
+        response = requests.get(
+            URL+'logicalport/v1/{}'.format(self._name), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get logical port fail! ' + response.text
+
+        return response.json()
+
+    def delete(self):
+        response = requests.delete(
+            URL+'logicalport/v1/{}'.format(self._name), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete logical port fail! ' + response.text
+
+        return self
+
+    def build(self):
+        payload = {
+            "name": self._name,
+            "is_mlag": False,
+            "group": self._group_id,
+            "members": self._member_list
+        }
+
+        response = requests.post(
+            URL+'logicalport/v1', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add logical port fail! ' + response.text
+
+        return self
+
+
+class SwitchLogicalPort():
+    def __init__(self, device):
+        self._device = device
+
+        self._API_BASE_URL = "http://" + device['mgmtIpAddress'] + "/api/"
+
+        # admin username
+        self._ADMIN_USERNAME = 'admin'
+        self._ADMIN_PASSWORD = 'admin'
+
+        # admin login
+        self._LOGIN = base64.b64encode(
+            bytes('{}:{}'.format(self._ADMIN_USERNAME, self._ADMIN_PASSWORD)))
+
+        self._GET_HEADER = {'Authorization': 'BASIC ' + self._LOGIN}
+
+    def get_portchannel(self, portchannel_id):
+        response = requests.get(
+            self._API_BASE_URL+'v1/port-channels/{}'.format(portchannel_id), headers=self._GET_HEADER)
+        assert response.status_code == 200, 'Get switch portchannel fail! ' + response.text
+
+        return response.json()
