@@ -23,12 +23,16 @@ Sensors
 import oftest.base_tests as base_tests
 import config as test_config
 import requests
+import auth
 
 URL = test_config.API_BASE_URL
 LOGIN = test_config.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+# GET_HEADER = {'Authorization': AUTH_TOKEN}
+# POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+GET_HEADER = {'Accept': 'application/json'}
+POST_HEADER = {'Content-Type': 'application/json'}
+COOKIES = auth.Authentication().login().get_cookies()
 
 
 class ControllerCpu(base_tests.SimpleDataPlane):
@@ -50,7 +54,7 @@ class ControllerCpu(base_tests.SimpleDataPlane):
 
         # Query Controller CPU threshold
         response = requests.get(
-            URL+'healthycheck/v1/controller/cpu/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/cpu/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller CPU threshold FAIL!'
 
         # Add threshold for Controller CPU
@@ -69,23 +73,23 @@ class ControllerCpu(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/controller/cpu/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/controller/cpu/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Controller CPU  FAIL!'
 
         # Query Controller CPU threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller CPU threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == payload, 'Add threshold for Controller CPU  FAIL!'
 
         # Delete Controller CPU threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Controller CPU threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller CPU threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Controller CPU threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -104,7 +108,7 @@ class ControllerRam(base_tests.SimpleDataPlane):
 
         # Query Controller RAM threshold
         response = requests.get(
-            URL+'healthycheck/v1/controller/ram/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/ram/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller RAM threshold FAIL!'
 
         # Add threshold for Controller RAM
@@ -123,23 +127,23 @@ class ControllerRam(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/controller/ram/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/controller/ram/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Controller RAM FAIL!'
 
         # Query Controller RAM threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller RAM threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == payload, 'Add threshold for Controller RAM FAIL!'
 
         # Delete Controller RAM threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Controller RAM threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller RAM threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Controller RAM threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -158,7 +162,7 @@ class ControllerDisk(base_tests.SimpleDataPlane):
 
         # Query Controller Disk threshold
         response = requests.get(
-            URL+'healthycheck/v1/controller/disk/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/disk/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller Disk threshold FAIL!'
 
         # Add threshold for Controller Disk
@@ -177,22 +181,22 @@ class ControllerDisk(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/controller/disk/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/controller/disk/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Controller Disk FAIL!'
 
         # Query Controller Disk threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller Disk threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Controller Disk threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Controller Disk threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller disk threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Controller Disk threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -211,7 +215,7 @@ class ControllerPort(base_tests.SimpleDataPlane):
 
         # Query Controller Port threshold
         response = requests.get(
-            URL+'healthycheck/v1/controller/port/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/port/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller Port threshold FAIL!'
 
         # Add threshold for Controller Port
@@ -237,22 +241,22 @@ class ControllerPort(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/controller/port/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/controller/port/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Controller Port  FAIL!'
 
         # Query Controller Port threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller Port threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Controller Port threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Controller Port threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/controller/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Controller Port threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Controller Port threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -271,7 +275,7 @@ class SwitchCpu(base_tests.SimpleDataPlane):
 
         # Query Switch CPU threshold
         response = requests.get(
-            URL+'healthycheck/v1/switch/cpu/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/cpu/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch CPU threshold FAIL!'
 
         # Add threshold for Switch CPU
@@ -290,23 +294,23 @@ class SwitchCpu(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/switch/cpu/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/switch/cpu/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Switch CPU FAIL!'
 
         # Query Switch CPU threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch CPU threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Switch CPU threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Switch CPU threshold by rule_name = ' + \
             rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/cpu/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch CPU threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Switch CPU threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -325,7 +329,7 @@ class SwitchRam(base_tests.SimpleDataPlane):
 
         # Query Switch Ram threshold
         response = requests.get(
-            URL+'healthycheck/v1/switch/ram/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/ram/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Ram threshold FAIL!'
 
         # Add threshold for Switch RAM
@@ -344,23 +348,23 @@ class SwitchRam(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/switch/ram/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/switch/ram/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Switch RAM FAIL!'
 
         # Query Switch RAM threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch RAM threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Switch RAM threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Switch RAM threshold by rule_name = ' + \
             rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/ram/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch ram threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Switch RAM threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -379,7 +383,7 @@ class SwitchDisk(base_tests.SimpleDataPlane):
 
         # Query Switch Disk threshold
         response = requests.get(
-            URL+'healthycheck/v1/switch/disk/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/disk/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Disk threshold FAIL!'
 
         # Add threshold for Switch Disk
@@ -398,22 +402,22 @@ class SwitchDisk(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/switch/disk/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/switch/disk/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Switch Disk FAIL!'
 
         # Query Switch Disk threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Disk threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Switch Disk threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Switch Disk threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/disk/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Disk threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Switch Disk threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -432,7 +436,7 @@ class SwitchPort(base_tests.SimpleDataPlane):
 
         # Query Switch Port threshold
         response = requests.get(
-            URL+'healthycheck/v1/switch/port/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/port/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Port threshold FAIL!'
 
         # Add threshold for Switch Port
@@ -458,22 +462,22 @@ class SwitchPort(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'healthycheck/v1/switch/port/threshold', json=payload, headers=POST_HEADER)
+            URL+'healthycheck/v1/switch/port/threshold', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add threshold for Switch Port FAIL!'
 
         # Query Switch Port threshold for a rule_name
         response = requests.get(
-            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Port threshold for a rule_name = '+rule_name+' FAIL!'
 
         # Delete Switch Port threshold by rule_name
         response = requests.delete(
-            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Switch Port threshold by rule_name = '+rule_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, headers=GET_HEADER)
+            URL+'healthycheck/v1/switch/port/threshold/'+rule_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query Switch Port threshold for a rule_name = '+rule_name+' FAIL!'
         assert response.json() == {}, 'Delete Switch Port threshold by rule_name = ' + \
             rule_name+' FAIL!'
@@ -489,7 +493,7 @@ class AllThreshold(base_tests.SimpleDataPlane):
 
         # Query all threshold
         response = requests.get(
-            URL+'healthycheck/v1/threshold', headers=GET_HEADER)
+            URL+'healthycheck/v1/threshold', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all threshold FAIL!'
 
 
@@ -504,7 +508,8 @@ class SensorsGetter(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Get a device_id
-        response = requests.get(URL+"v1/devices", headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/devices", cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query devices is FAIL!'
         assert len(response.json()[
                    'devices']) > 0, 'Test NTP Server RestAPI need at least one device'
@@ -512,16 +517,16 @@ class SensorsGetter(base_tests.SimpleDataPlane):
 
         # Query temperature sensor of a device
         response = requests.get(
-            URL+'healthycheck/v1/sensors/'+device_id+'/temp', headers=GET_HEADER)
+            URL+'healthycheck/v1/sensors/'+device_id+'/temp', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query temperature sensor of device_id = ' + \
             device_id+' FAIL!'
 
         # Query psu sensot of a device
         response = requests.get(
-            URL+'healthycheck/v1/sensors/'+device_id+'/psu', headers=GET_HEADER)
+            URL+'healthycheck/v1/sensors/'+device_id+'/psu', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query psu sensor of device_id = '+device_id+' FAIL!'
 
         # Query fan sensot of a device
         response = requests.get(
-            URL+'healthycheck/v1/sensors/'+device_id+'/fan', headers=GET_HEADER)
+            URL+'healthycheck/v1/sensors/'+device_id+'/fan', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query fan sensor of device_id = '+device_id+' FAIL!'

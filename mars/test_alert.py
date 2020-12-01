@@ -8,12 +8,16 @@ Test Alert RestAPI.
 import oftest.base_tests as base_tests
 import config as test_config
 import requests
+import auth
 
 URL = test_config.API_BASE_URL
 LOGIN = test_config.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+# GET_HEADER = {'Authorization': AUTH_TOKEN}
+# POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+GET_HEADER = {'Accept': 'application/json'}
+POST_HEADER = {'Content-Type': 'application/json'}
+COOKIES = auth.Authentication().login().get_cookies()
 
 
 class History(base_tests.SimpleDataPlane):
@@ -35,12 +39,12 @@ class History(base_tests.SimpleDataPlane):
 
         # Get all history
         response = requests.get(
-            URL+'alert/v1/history/list', headers=GET_HEADER)
+            URL+'alert/v1/history/list', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all history FAIL!'
 
         # Delete an alert history of a uuid
         response = requests.delete(
-            URL+'alert/v1/history/uuid/00000000-0000-0000-0000-000000000000', headers=GET_HEADER)
+            URL+'alert/v1/history/uuid/00000000-0000-0000-0000-000000000000', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete an alert history of a uuid FAIL!'
 
         # Delete many history
@@ -51,17 +55,17 @@ class History(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.post(
-            URL+'alert/v1/history/select/delete', json=payload, headers=POST_HEADER)
+            URL+'alert/v1/history/select/delete', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Delete many history FAIL!'
 
         # Delete all history
         response = requests.delete(
-            URL+'alert/v1/history/all', headers=GET_HEADER)
+            URL+'alert/v1/history/all', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete all history FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'alert/v1/history/list', headers=GET_HEADER)
+            URL+'alert/v1/history/list', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all history FAIL!'
         assert len(response.json()['history']) == 0, 'Delete all history FAIL!'
 
@@ -77,7 +81,8 @@ class BasicConfig(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Get Basic Config
-        response = requests.get(URL+'alert/v1/basicconfig', headers=GET_HEADER)
+        response = requests.get(
+            URL+'alert/v1/basicconfig', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get Basic Config FAIL!'
 
         # POST Basic Config
@@ -100,21 +105,23 @@ class BasicConfig(base_tests.SimpleDataPlane):
             }
         }
         response = requests.post(
-            URL+'alert/v1/basicconfig', json=payload, headers=POST_HEADER)
+            URL+'alert/v1/basicconfig', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'POST Basic Config FAIL!'
 
         # Check if post successfully
-        response = requests.get(URL+'alert/v1/basicconfig', headers=GET_HEADER)
+        response = requests.get(
+            URL+'alert/v1/basicconfig', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get Basic Config FAIL!'
         assert len(response.text) != 0, 'POST Basic Config FAIL!'
 
         # Delete Basic Config settings
         response = requests.delete(
-            URL+'alert/v1/basicconfig', headers=GET_HEADER)
+            URL+'alert/v1/basicconfig', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete Basic Config FAIL!'
 
         # Check if delete successfully
-        response = requests.get(URL+'alert/v1/basicconfig', headers=GET_HEADER)
+        response = requests.get(
+            URL+'alert/v1/basicconfig', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get Basic Config FAIL!'
         assert response.json() == {}, 'Delete Basic Config FAIL!'
 
@@ -132,7 +139,7 @@ class GroupReceiver(base_tests.SimpleDataPlane):
 
         # Get all alert receiver group
         response = requests.get(
-            URL+'alert/v1/group/receiver/all', headers=GET_HEADER)
+            URL+'alert/v1/group/receiver/all', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get all group FAIL!'
 
         # Add a receive group
@@ -156,23 +163,23 @@ class GroupReceiver(base_tests.SimpleDataPlane):
             }
         }
         response = requests.post(
-            URL+'alert/v1/group/receiver', json=payload, headers=POST_HEADER)
+            URL+'alert/v1/group/receiver', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add a new receive group FAIL!'
 
         # Check if add successfully
         response = requests.get(
-            URL+'alert/v1/group/receiver/'+group_name, headers=GET_HEADER)
+            URL+'alert/v1/group/receiver/'+group_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query group_name = '+group_name+' FAIL!'
         assert response.json() == payload, 'Add a new receiver group FAIL!'
 
         # Delete the group
         response = requests.delete(
-            URL+'alert/v1/group/receiver/'+group_name, headers=GET_HEADER)
+            URL+'alert/v1/group/receiver/'+group_name, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete group_name = '+group_name+' FAIL!'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'alert/v1/group/receiver/all', headers=GET_HEADER)
+            URL+'alert/v1/group/receiver/all', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get all group FAIL!'
         notexist = True
         for item in response.json()['group']:

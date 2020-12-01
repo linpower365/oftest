@@ -30,13 +30,17 @@ import config as cfg
 import requests
 import time
 import utils
+import auth
 from utils import *
 
 URL = cfg.API_BASE_URL
 LOGIN = cfg.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+# GET_HEADER = {'Authorization': AUTH_TOKEN}
+# POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+GET_HEADER = {'Accept': 'application/json'}
+POST_HEADER = {'Content-Type': 'application/json'}
+COOKIES = auth.Authentication().login().get_cookies()
 
 
 class Tenants(base_tests.SimpleDataPlane):
@@ -62,7 +66,8 @@ class Getter(Tenants):
     """
 
     def runTest(self):
-        response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
+        response = requests.get(URL+"v1/tenants/v1",
+                                cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
 
@@ -82,7 +87,8 @@ class AddAndDelete(Tenants):
         )
 
         # query tenants
-        response = requests.get(URL + 'v1/tenants/v1', headers=GET_HEADER)
+        response = requests.get(URL + 'v1/tenants/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
         found = False
         for t in response.json()['tenants']:
@@ -94,7 +100,8 @@ class AddAndDelete(Tenants):
         t1.destroy()
 
         # query and check
-        response = requests.get(URL + 'v1/tenants/v1', headers=GET_HEADER)
+        response = requests.get(URL + 'v1/tenants/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
         not_exist = True
         if len(response.json()) > 0:
@@ -121,11 +128,12 @@ class Segment(Tenants):
         # add a tenant
         payload = '{"name": "' + tenant_name + '", "type": "System"}'
         response = requests.post(
-            URL+"v1/tenants/v1", headers=POST_HEADER, data=payload)
+            URL+"v1/tenants/v1", cookies=COOKIES, headers=POST_HEADER, data=payload)
         assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
 
         # check if add tenant successfully
-        response = requests.get(URL+'v1/tenants/v1', headers=GET_HEADER)
+        response = requests.get(URL+'v1/tenants/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query tenants FAIL!'
 
         find = False
@@ -144,12 +152,12 @@ class Segment(Tenants):
             "value": "20"
         }
         response = requests.post(
-            URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+            URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add segment FAIL! ' + response.text
 
         # check if add segment successfully
         response = requests.get(
-            URL+'v1/tenants/v1/segments', headers=GET_HEADER)
+            URL+'v1/tenants/v1/segments', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all segments FAIL!'
         find = False
         for item in response.json()['segments']:
@@ -159,18 +167,18 @@ class Segment(Tenants):
 
         # check if add segment successfully with another API
         response = requests.get(
-            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query segment FAIL!'
         assert len(response.text) != 0, 'Add segment FAIL!'
 
         # Delete segment
         response = requests.delete(
-            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete segment FAIL!'
 
         # check if delete segment successfully
         response = requests.get(
-            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+            URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code != 200, 'Delete segment FAIL!'
 
         # delete test tenant
@@ -196,7 +204,7 @@ class LargeScaleSegment(Tenants):
                 'type': 'Normal'
             }
             response = requests.post(
-                URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+                URL+"v1/tenants/v1", cookies=COOKIES, headers=POST_HEADER, json=payload)
             assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
             # add segment
             segment_name = 'test_segment_+'+str(i)
@@ -209,15 +217,15 @@ class LargeScaleSegment(Tenants):
                 "value": i
             }
             response = requests.post(
-                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, cookies=COOKIES, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment FAIL! ' + response.text
             # delete segment
             response = requests.delete(
-                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), cookies=COOKIES, headers=GET_HEADER)
             assert response.status_code == 200, 'Delete segment FAIL!'
             # delete tenant
             response = requests.delete(
-                URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+                URL + 'v1/tenants/v1/{}'.format(tenant_name), cookies=COOKIES, headers=GET_HEADER)
             assert(response.status_code == 200)
 
         # case 2: 1 tenant with 4k segment
@@ -228,7 +236,7 @@ class LargeScaleSegment(Tenants):
         }
         # add tenant
         response = requests.post(
-            URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+            URL+"v1/tenants/v1", cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Add a tenant FAIL! ' + response.text
         # add segment
         for i in range(4000):
@@ -242,15 +250,15 @@ class LargeScaleSegment(Tenants):
                 "value": 10000+i
             }
             response = requests.post(
-                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, headers=POST_HEADER)
+                URL+'v1/tenants/v1/{}/segments'.format(tenant_name), json=payload, cookies=COOKIES, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment FAIL! ' + response.text
             # delete segment
             response = requests.delete(
-                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), headers=GET_HEADER)
+                URL+'v1/tenants/v1/{}/segments/{}'.format(tenant_name, segment_name), cookies=COOKIES, headers=GET_HEADER)
             assert response.status_code == 200, 'Delete segment FAIL!'
         # delete tenant
         response = requests.delete(
-            URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+            URL + 'v1/tenants/v1/{}'.format(tenant_name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete tenant FAIL!' + response.text
 
 

@@ -9,19 +9,26 @@ import config as cfg
 import oftest
 import paramiko
 import re
+import auth
 from oftest.testutils import *
 from telnetlib import Telnet
 from scapy.layers.l2 import *
 from scapy.layers.inet import *
 from scapy.layers.dhcp import *
 
+
 URL = cfg.API_BASE_URL
 LOGIN = cfg.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
-DELETE_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
-PUT_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
+# GET_HEADER = {'Authorization': AUTH_TOKEN}
+# POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+# DELETE_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
+# PUT_HEADER = {'Authorization': AUTH_TOKEN, 'Accept': 'application/json'}
+GET_HEADER = {'Accept': 'application/json'}
+POST_HEADER = {'Content-Type': 'application/json'}
+DELETE_HEADER = {'Accept': 'application/json'}
+PUT_HEADER = {'Accept': 'application/json'}
+COOKIES = auth.Authentication().login().get_cookies()
 
 LINKS_INSPECT_RETRY_NUM_MAX = 300
 
@@ -174,12 +181,12 @@ def setup_devices():
 def setup_configuration():
     # check_license()
 
-    setup_power()
+    # setup_power()
     setup_devices()
 
     if oftest.config['test_topology'] == 'scatter':
         clear_span()
-        clear_traffic_segmentation()
+        # clear_traffic_segmentation()
     else:
         clear_tenant()
         clear_uplink_segment()
@@ -248,7 +255,7 @@ def testhost_configuration():
 
 def config_exists(device):
     response = requests.get(
-        URL+"v1/devices/{}".format(device['id']), headers=GET_HEADER)
+        URL+"v1/devices/{}".format(device['id']), cookies=COOKIES, headers=GET_HEADER)
 
     if response.status_code == 404:
         return False
@@ -294,18 +301,19 @@ def config_add(device):
         }
 
     response = requests.post(
-        URL+'v1/devices', json=payload, headers=POST_HEADER)
+        URL+'v1/devices', json=payload, cookies=COOKIES, headers=POST_HEADER)
     assert response.status_code == 200, 'Add device fail! ' + response.text
 
 
 def config_remove(device):
     response = requests.delete(
-        URL+'v1/devices/{}'.format(device['id']), headers=DELETE_HEADER)
+        URL+'v1/devices/{}'.format(device['id']), cookies=COOKIES, headers=DELETE_HEADER)
     assert response.status_code == 200, 'Delete device fail! ' + response.text
 
 
 def clear_tenant():
-    response = requests.get(URL+"v1/tenants/v1", headers=GET_HEADER)
+    response = requests.get(URL+"v1/tenants/v1",
+                            cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     # {"tenants":[{"name":"t1","type":"Normal"}]}
@@ -319,7 +327,7 @@ def clear_tenant():
 
 def clear_uplink_segment():
     response = requests.get(
-        URL+"topology/v1/uplink-segments", headers=GET_HEADER)
+        URL+"topology/v1/uplink-segments", cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['uplinkSegments']:
@@ -329,7 +337,8 @@ def clear_uplink_segment():
 
 
 def clear_logical_router():
-    response = requests.get(URL+"tenantlogicalrouter/v1", headers=GET_HEADER)
+    response = requests.get(URL+"tenantlogicalrouter/v1",
+                            cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['routers']:
@@ -343,65 +352,67 @@ def clear_logical_router():
 
 def clear_policy_route(tenant, lrouter):
     response = requests.get(
-        URL+"tenantlogicalrouter/v1/tenants/{}/{}/policy-route".format(tenant, lrouter), headers=GET_HEADER)
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/policy-route".format(tenant, lrouter), cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['policies']:
         for policy in response.json()['policies']:
             response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(
-                tenant, lrouter, policy['name']), headers=GET_HEADER)
+                tenant, lrouter, policy['name']), cookies=COOKIES, headers=GET_HEADER)
             assert response.status_code == 200, 'Destroy policy route fail ' + response.text
 
 
 def clear_nexthop_group(tenant, lrouter):
     response = requests.get(
-        URL+"tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group".format(tenant, lrouter), headers=GET_HEADER)
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group".format(tenant, lrouter), cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['nextHops']:
         for nexthop in response.json()['nextHops']:
             response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(
-                tenant, lrouter, nexthop['nexthop_group_name']), headers=GET_HEADER)
+                tenant, lrouter, nexthop['nexthop_group_name']), cookies=COOKIES, headers=GET_HEADER)
             assert response.status_code == 200, 'Destroy nexthop group fail ' + response.text
 
 
 def clear_static_route(tenant, lrouter):
     response = requests.get(
-        URL+"tenantlogicalrouter/v1/tenants/{}/{}/static-route".format(tenant, lrouter), headers=GET_HEADER)
+        URL+"tenantlogicalrouter/v1/tenants/{}/{}/static-route".format(tenant, lrouter), cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['routes']:
         for static_route in response.json()['routes']:
             response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(
-                tenant, lrouter, static_route['name']), headers=GET_HEADER)
+                tenant, lrouter, static_route['name']), cookies=COOKIES, headers=GET_HEADER)
             assert response.status_code == 200, 'Destroy static route fail ' + response.text
 
 
 def clear_span():
-    response = requests.get(URL+"monitor/v1", headers=GET_HEADER)
+    response = requests.get(
+        URL+"monitor/v1", cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if 'sessions' in response.json():
         for session in response.json()['sessions']:
             response = requests.delete(
-                URL+'monitor/v1/{}'.format(session['session']), headers=DELETE_HEADER)
+                URL+'monitor/v1/{}'.format(session['session']), cookies=COOKIES, headers=DELETE_HEADER)
             assert response.status_code == 200, 'Destroy SAPN session fail ' + response.text
 
 
 def clear_traffic_segmentation():
     response = requests.get(
-        URL+"trafficsegment/v1/sessions", headers=GET_HEADER)
+        URL+"trafficsegment/v1/sessions", cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if 'sessions' in response.json():
         for session in response.json()['sessions']:
             response = requests.delete(
-                URL+'trafficsegment/v1/sessions/{}/{}'.format(session['deviceId'], session['sessionId']), headers=DELETE_HEADER)
+                URL+'trafficsegment/v1/sessions/{}/{}'.format(session['deviceId'], session['sessionId']), cookies=COOKIES, headers=DELETE_HEADER)
             assert response.status_code == 200, 'Delete traffic segmentation fail! ' + response.text
 
 
 def clear_dhcp_relay():
-    response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
+    response = requests.get(URL+'dhcprelay/v1/logical',
+                            cookies=COOKIES, headers=GET_HEADER)
     assert response.status_code == 200, 'Get DHCP relay fail! ' + response.text
 
     if 'dhcpRelayServers' in response.json():
@@ -410,13 +421,14 @@ def clear_dhcp_relay():
                 response = requests.delete(
                     URL+'dhcprelay/v1/logical/tenants/{}/segments/{}/servers/{}'.format(
                         dhcpRelayServer['tenant'], dhcpRelayServer['segment'], server),
-                    headers=GET_HEADER
+                    cookies=COOKIES, headers=GET_HEADER
                 )
                 assert response.status_code == 200, 'Destroy DHCP relay server fail ' + response.text
 
 
 def enable_ports():
-    response = requests.get(URL+"v1/devices/ports", headers=GET_HEADER)
+    response = requests.get(URL+"v1/devices/ports",
+                            cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     for port in response.json()['ports']:
@@ -425,7 +437,7 @@ def enable_ports():
                 'enabled': True,
             }
             response = requests.post(URL+"v1/devices/{}/portstate/{}".format(
-                port['element'], port['port']), headers=POST_HEADER, json=payload)
+                port['element'], port['port']), cookies=COOKIES, headers=POST_HEADER, json=payload)
             assert response.status_code == 200, 'Enable port fail! ' + response.text
 
 
@@ -437,7 +449,8 @@ def links_inspect(spines, leaves, debug=False, second=0, fail_stop=False):
     retry_count = 0
 
     while keep_test and retry_count < LINKS_INSPECT_RETRY_NUM_MAX:
-        response = requests.get(URL+"v1/links", headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/links", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         # bidirection link count
@@ -485,7 +498,8 @@ def links_inspect2(links, debug=False, second=0, fail_stop=False):
     retry_count = 0
 
     while keep_test and retry_count < LINKS_INSPECT_RETRY_NUM_MAX:
-        response = requests.get(URL+"v1/links", headers=GET_HEADER)
+        response = requests.get(
+            URL+"v1/links", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         # bidirection link count
@@ -525,15 +539,16 @@ def links_inspect2(links, debug=False, second=0, fail_stop=False):
 
 
 def check_license():
-    response = requests.get(URL+"v1/license/v1", headers=GET_HEADER)
+    response = requests.get(URL+"v1/license/v1",
+                            cookies=COOKIES, headers=GET_HEADER)
     assert(response.status_code == 200)
 
     if response.json()['maxSwitches'] == 8:
         # files = {'file': open('../licenseForNCTU.lic', 'rb')}
-        # response = requests.post(URL+'v1/license/BinaryFile', files=files, headers=POST_HEADER)
+        # response = requests.post(URL+'v1/license/BinaryFile', files=files, cookies=COOKIES, headers=POST_HEADER)
         data = open('../licenseForNCTU.lic', 'rb').read()
         response = requests.post(
-            URL+'v1/license/BinaryFile', data=data, headers=POST_HEADER)
+            URL+'v1/license/BinaryFile', data=data, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add license fail! ' + response.text
 
 
@@ -566,17 +581,17 @@ class RemotePower():
 
     def On(self):
         response = requests.post(
-            self._url+"ons.cgi?led=" + "".join(self._led), headers=self._post_header)
+            self._url+"ons.cgi?led=" + "".join(self._led), cookies=COOKIES, headers=self._post_header)
         assert response.status_code == 200, 'Turn on remote power fail! ' + response.text
 
     def Off(self):
         response = requests.post(
-            self._url+"offs.cgi?led=" + "".join(self._led), headers=self._post_header)
+            self._url+"offs.cgi?led=" + "".join(self._led), cookies=COOKIES, headers=self._post_header)
         assert response.status_code == 200, 'Turn off remote power fail! ' + response.text
 
     def OffOn(self):
         response = requests.post(
-            self._url+"offon.cgi?led=" + "".join(self._led), headers=self._post_header)
+            self._url+"offon.cgi?led=" + "".join(self._led), cookies=COOKIES, headers=self._post_header)
         assert response.status_code == 200, 'Turn off and on remote power fail! ' + response.text
 
 
@@ -670,7 +685,7 @@ class Tenant():
             'type': self.type
         }
         response = requests.post(
-            URL+"v1/tenants/v1", headers=POST_HEADER, json=payload)
+            URL+"v1/tenants/v1", cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Add a tenant fail! ' + response.text
 
     def build_segment(self):
@@ -689,7 +704,7 @@ class Tenant():
                     "value": segment['vlan_id']
                 }
             response = requests.post(
-                URL+'v1/tenants/v1/{}/segments'.format(self.name), json=payload, headers=POST_HEADER)
+                URL+'v1/tenants/v1/{}/segments'.format(self.name), json=payload, cookies=COOKIES, headers=POST_HEADER)
             assert response.status_code == 200, 'Add segment fail! ' + response.text
 
             if segment['type'] == 'vlan':
@@ -708,7 +723,7 @@ class Tenant():
                 }
 
                 response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/device/{}/vlan'.format(self.name, segment['name'], member._devices_id),
-                                         json=payload, headers=POST_HEADER)
+                                         json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add segment member fail ' + response.text
 
     def build_access_port(self, segment):
@@ -728,7 +743,7 @@ class Tenant():
                 }
 
                 response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(
-                    self.name, segment['name']), json=payload, headers=POST_HEADER)
+                    self.name, segment['name']), json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add access port fail! ' + response.text
 
     def build_network_port(self, segment):
@@ -746,17 +761,17 @@ class Tenant():
                 }
 
                 response = requests.post(URL+'v1/tenants/v1/{}/segments/{}/vxlan'.format(
-                    self.name, segment['name']), json=payload, headers=POST_HEADER)
+                    self.name, segment['name']), json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add network port fail! ' + response.text
 
     def delete_segment(self, name):
         response = requests.delete(
-            URL+'v1/tenants/v1/{}/segments/{}'.format(self.name, name), headers=GET_HEADER)
+            URL+'v1/tenants/v1/{}/segments/{}'.format(self.name, name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete segment fail ' + response.text
 
     def destroy(self):
         response = requests.delete(
-            URL+'v1/tenants/v1/{}'.format(self.name), headers=GET_HEADER)
+            URL+'v1/tenants/v1/{}'.format(self.name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Destroy tenant fail ' + response.text
 
     def debug(self):
@@ -834,12 +849,12 @@ class UplinkSegment():
         }
 
         response = requests.post(
-            URL+'topology/v1/uplink-segments', json=payload, headers=POST_HEADER)
+            URL+'topology/v1/uplink-segments', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add uplink segment fail! ' + response.text
 
     def destroy(self):
         response = requests.delete(
-            URL+'topology/v1/uplink-segments/{}'.format(self.uplink_segment['name']), headers=GET_HEADER)
+            URL+'topology/v1/uplink-segments/{}'.format(self.uplink_segment['name']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Destroy uplink segment fail ' + response.text
 
     def debug(self):
@@ -854,7 +869,7 @@ class Device():
     @property
     def available(self):
         response = requests.get(
-            URL+'v1/devices/{}'.format(self._id), headers=GET_HEADER)
+            URL+'v1/devices/{}'.format(self._id), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get device fail! ' + response.text
 
         return response.json()['available']
@@ -871,7 +886,7 @@ class DevicePort():
             'enabled': enabled,
         }
         response = requests.post(URL+"v1/devices/{}/portstate/{}".format(
-            self.device_id, self.port_id), headers=POST_HEADER, json=payload)
+            self.device_id, self.port_id), cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Change port state fail! ' + response.text
 
     def link_up(self):
@@ -1033,25 +1048,25 @@ class LogicalRouter():
 
     def destroy(self):
         response = requests.delete(
-            URL+'tenantlogicalrouter/v1/tenants/{}/{}'.format(self.tenant, self.name), headers=GET_HEADER)
+            URL+'tenantlogicalrouter/v1/tenants/{}/{}'.format(self.tenant, self.name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Destroy logical router fail ' + response.text
 
         if self.policy_routes:
             for policy_route in self.policy_routes:
                 response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route/{}'.format(
-                    self.tenant, self.name, policy_route._name), headers=GET_HEADER)
+                    self.tenant, self.name, policy_route._name), cookies=COOKIES, headers=GET_HEADER)
                 assert response.status_code == 200, 'Destroy policy route fail ' + response.text
 
         if self.nexthop_groups:
             for nexthop_group in self.nexthop_groups:
                 response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group/{}'.format(
-                    self.tenant, self.name, nexthop_group['name']), headers=GET_HEADER)
+                    self.tenant, self.name, nexthop_group['name']), cookies=COOKIES, headers=GET_HEADER)
                 assert response.status_code == 200, 'Destroy nexthop group fail ' + response.text
 
         if self.static_routes:
             for static_route in self.static_routes:
                 response = requests.delete(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route/{}'.format(
-                    self.tenant, self.name, static_route['name']), headers=GET_HEADER)
+                    self.tenant, self.name, static_route['name']), cookies=COOKIES, headers=GET_HEADER)
                 assert response.status_code == 200, 'Destroy static route fail ' + response.text
 
     def build(self):
@@ -1075,11 +1090,11 @@ class LogicalRouter():
 
         if self.name == 'system':
             response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(
-                self.name), json=payload['system'], headers=POST_HEADER)
+                self.name), json=payload['system'], cookies=COOKIES, headers=POST_HEADER)
             assert response.status_code == 200, 'Add logical router fail! ' + response.text
         else:
             response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}'.format(
-                self.tenant), json=payload['normal'], headers=POST_HEADER)
+                self.tenant), json=payload['normal'], cookies=COOKIES, headers=POST_HEADER)
             assert response.status_code == 200, 'Add logical router fail! ' + response.text
 
     def build_policy_route(self):
@@ -1097,7 +1112,7 @@ class LogicalRouter():
                 }
 
                 response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/policy-route'.format(
-                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                    self.tenant, self.name), json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add policy route fail! ' + response.text
 
     def build_nexthop_group(self):
@@ -1109,7 +1124,7 @@ class LogicalRouter():
                 }
 
                 response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/nexthop-group'.format(
-                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                    self.tenant, self.name), json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add nexthop group fail! ' + response.text
 
     def build_static_route(self):
@@ -1123,7 +1138,7 @@ class LogicalRouter():
                 }
 
                 response = requests.post(URL+'tenantlogicalrouter/v1/tenants/{}/{}/static-route'.format(
-                    self.tenant, self.name), json=payload, headers=POST_HEADER)
+                    self.tenant, self.name), json=payload, cookies=COOKIES, headers=POST_HEADER)
                 assert response.status_code == 200, 'Add static router fail! ' + response.text
 
     def debug(self):
@@ -1155,7 +1170,7 @@ class SPAN():
 
     def get_session(self, session_id):
         response = requests.get(
-            URL+'monitor/v1/{}'.format(session_id), headers=GET_HEADER)
+            URL+'monitor/v1/{}'.format(session_id), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get SPAN session fail! ' + response.text
 
         return response.json()
@@ -1175,19 +1190,20 @@ class SPAN():
         }
 
         response = requests.post(
-            URL+'monitor/v1', json=payload, headers=POST_HEADER)
+            URL+'monitor/v1', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add SPAN fail! ' + response.text
 
         return self
 
     def destroy(self):
-        response = requests.get(URL+"monitor/v1", headers=GET_HEADER)
+        response = requests.get(
+            URL+"monitor/v1", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         if 'sessions' in response.json():
             for session in response.json()['sessions']:
                 response = requests.delete(
-                    URL+'monitor/v1/{}'.format(session['session']), headers=GET_HEADER)
+                    URL+'monitor/v1/{}'.format(session['session']), cookies=COOKIES, headers=GET_HEADER)
                 assert response.status_code == 200, 'Destroy SAPN session fail ' + response.text
 
 
@@ -1204,7 +1220,8 @@ class DHCPRelay():
         return self
 
     def get_content(self):
-        response = requests.get(URL+'dhcprelay/v1/logical', headers=GET_HEADER)
+        response = requests.get(
+            URL+'dhcprelay/v1/logical', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get DHCP relay fail! ' + response.text
 
         return response.json()
@@ -1217,13 +1234,14 @@ class DHCPRelay():
         }
 
         response = requests.post(
-            URL+'dhcprelay/v1/logical', json=payload, headers=POST_HEADER)
+            URL+'dhcprelay/v1/logical', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add DHCP relay fail! ' + response.text
 
         return self
 
     def destroy(self):
-        response = requests.get(URL+"dhcprelay/v1/logical", headers=GET_HEADER)
+        response = requests.get(
+            URL+"dhcprelay/v1/logical", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         if 'dhcpRelayServers' in response.json():
@@ -1342,21 +1360,21 @@ class Configuration():
 
     def get_current_json(self):
         response = requests.get(
-            URL+"v1/network/configuration", headers=GET_HEADER)
+            URL+"v1/network/configuration", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         return response.json()
 
     def get_factory_default_json(self):
         response = requests.get(
-            URL+"v1/network/configuration/files/Factory_Default_Config.cfg", headers=GET_HEADER)
+            URL+"v1/network/configuration/files/Factory_Default_Config.cfg", cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
         return response.json()
 
     def save_as_boot_default_config(self, json_content):
         response = requests.post(
-            URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, headers=POST_HEADER)
+            URL+'v1/network/configuration/file-modify/startup_netcfg.cfg', json=json_content, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 204, 'save as boot default config fail! ' + response.text
 
 
@@ -1366,14 +1384,14 @@ class StaticVLAN():
 
     def delete(self, del_cfg):
         response = requests.delete(
-            URL+'vlan/v1/vlan-config/{}/port/{}'.format(self._vlan_cfg['device-id'], del_cfg['port']), headers=DELETE_HEADER)
+            URL+'vlan/v1/vlan-config/{}/port/{}'.format(self._vlan_cfg['device-id'], del_cfg['port']), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'delete port fail! ' + response.text
 
         return self
 
     def get_port(self, port_id):
         response = requests.get(
-            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'get ports fail! ' + response.text
 
         for port in response.json()['ports']:
@@ -1393,7 +1411,7 @@ class StaticVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add static vlan fail! ' + response.text
 
         return self
@@ -1419,7 +1437,7 @@ class DynamicVLAN():
         }
 
         response = requests.put(
-            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=PUT_HEADER)
         assert response.status_code == 200, 'Modify dynamic vlan fail! ' + response.text
 
         return self
@@ -1440,14 +1458,14 @@ class DynamicVLAN():
         }
 
         response = requests.put(
-            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=PUT_HEADER)
         assert response.status_code == 200, 'Modify dynamic vlan fail! ' + response.text
 
         return self
 
     def get_port(self, port_id):
         response = requests.get(
-            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'get ports fail! ' + response.text
 
         for port in response.json()['ports']:
@@ -1467,7 +1485,7 @@ class DynamicVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add dynamic vlan fail! ' + response.text
 
         return self
@@ -1479,7 +1497,7 @@ class GuestVLAN():
 
     def get_vlan(self):
         response = requests.get(
-            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'get ports fail! ' + response.text
 
         for port in response.json()['ports']:
@@ -1504,7 +1522,7 @@ class GuestVLAN():
         }
 
         response = requests.put(
-            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=PUT_HEADER)
         assert response.status_code == 200, 'Modify guest vlan fail! ' + response.text
 
         return self
@@ -1520,7 +1538,7 @@ class GuestVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add guest vlan fail! ' + response.text
 
         return self
@@ -1532,7 +1550,7 @@ class VLAN():
 
     def get(self, vlan_id):
         response = requests.get(
-            URL+'vlan/v1/vlan-config/{}/vlans'.format(self._vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/vlan-config/{}/vlans'.format(self._vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'get vlans fail! ' + response.text
 
         for vlan in response.json()['vlans']:
@@ -1552,12 +1570,12 @@ class VLAN():
         }
 
         response = requests.put(
-            URL+'vlan/v1/vlan-config', json=payload, headers=PUT_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=PUT_HEADER)
         assert response.status_code == 200, 'Modify vlan fail! ' + response.text
 
     def delete(self, vlan_id):
         response = requests.delete(
-            URL+'vlan/v1/vlan-config/{}/vlan/{}'.format(self._vlan_cfg['device-id'], vlan_id), headers=DELETE_HEADER)
+            URL+'vlan/v1/vlan-config/{}/vlan/{}'.format(self._vlan_cfg['device-id'], vlan_id), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'Delete vlan fail! ' + response.text
 
     def build(self):
@@ -1571,7 +1589,7 @@ class VLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/vlan-config', json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/vlan-config', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add vlan fail! ' + response.text
 
         return self
@@ -1587,7 +1605,7 @@ class VoiceVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add voice vlan oui fail! ' + response.text
 
         return self
@@ -1598,21 +1616,21 @@ class VoiceVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add voice vlan ports fail! ' + response.text
 
         return self
 
     def get(self):
         response = requests.get(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=GET_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get voice vlan fail! ' + response.text
 
         return response.json()
 
     def delete(self):
         response = requests.delete(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), headers=DELETE_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'Delete voice vlan fail! ' + response.text
 
         return self
@@ -1623,7 +1641,7 @@ class VoiceVLAN():
         }
 
         response = requests.post(
-            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, headers=POST_HEADER)
+            URL+'vlan/v1/voice-vlan/{}'.format(self._voice_vlan_cfg['device-id']), json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add voice vlan fail! ' + response.text
 
         return self
@@ -1650,14 +1668,14 @@ class TrafficSegmentation():
 
     def get(self):
         response = requests.get(
-            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), headers=GET_HEADER)
+            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get traffic segmentation fail! ' + response.text
 
         return response.json()
 
     def delete(self):
         response = requests.delete(
-            URL+'trafficsegment/v1/sessions/{}/{}'.format(self._devices_id, self._session_id), headers=DELETE_HEADER)
+            URL+'trafficsegment/v1/sessions/{}/{}'.format(self._devices_id, self._session_id), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'Delete traffic segmentation fail! ' + response.text
 
         return self
@@ -1670,7 +1688,7 @@ class TrafficSegmentation():
         }
 
         response = requests.post(
-            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), json=payload, headers=POST_HEADER)
+            URL+'trafficsegment/v1/sessions/{}'.format(self._devices_id), json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add traffic segmentation fail! ' + response.text
 
         return self
@@ -1697,14 +1715,14 @@ class LogicalPort():
 
     def get(self):
         response = requests.get(
-            URL+'logicalport/v1/{}'.format(self._name), headers=GET_HEADER)
+            URL+'logicalport/v1/{}'.format(self._name), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Get logical port fail! ' + response.text
 
         return response.json()
 
     def delete(self):
         response = requests.delete(
-            URL+'logicalport/v1/{}'.format(self._name), headers=DELETE_HEADER)
+            URL+'logicalport/v1/{}'.format(self._name), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'Delete logical port fail! ' + response.text
 
         return self
@@ -1718,7 +1736,7 @@ class LogicalPort():
         }
 
         response = requests.post(
-            URL+'logicalport/v1', json=payload, headers=POST_HEADER)
+            URL+'logicalport/v1', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add logical port fail! ' + response.text
 
         return self
@@ -1742,7 +1760,7 @@ class SwitchLogicalPort():
 
     def get_portchannel(self, portchannel_id):
         response = requests.get(
-            self._API_BASE_URL+'v1/port-channels/{}'.format(portchannel_id), headers=self._GET_HEADER)
+            self._API_BASE_URL+'v1/port-channels/{}'.format(portchannel_id), cookies=COOKIES, headers=self._GET_HEADER)
         assert response.status_code == 200, 'Get switch portchannel fail! ' + response.text
 
         return response.json()

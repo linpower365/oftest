@@ -10,12 +10,16 @@ import config as test_config
 import requests
 import time
 import random
+import auth
 
 URL = test_config.API_BASE_URL
 LOGIN = test_config.LOGIN
 AUTH_TOKEN = 'BASIC ' + LOGIN
-GET_HEADER = {'Authorization': AUTH_TOKEN}
-POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+# GET_HEADER = {'Authorization': AUTH_TOKEN}
+# POST_HEADER = {'Authorization': AUTH_TOKEN, 'Content-Type': 'application/json'}
+GET_HEADER = {'Accept': 'application/json'}
+POST_HEADER = {'Content-Type': 'application/json'}
+COOKIES = auth.Authentication().login().get_cookies()
 
 
 class CoS(base_tests.SimpleDataPlane):
@@ -35,12 +39,14 @@ class CoS(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Query all cos data
-        response = requests.get(URL+'qos/cos/v1', headers=GET_HEADER)
+        response = requests.get(
+            URL+'qos/cos/v1', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all cos data FAIL'
 
         # Query one cos data
         qno = str(random.randrange(0, 8, 1))
-        response = requests.get(URL+'qos/cos/v1/'+qno, headers=GET_HEADER)
+        response = requests.get(URL+'qos/cos/v1/'+qno,
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query queue '+qno + ' FAIL'
 
         # Update one cos config
@@ -51,11 +57,12 @@ class CoS(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.put(
-            URL+'qos/cos/v1', headers=POST_HEADER, json=payload)
+            URL+'qos/cos/v1', cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Update cos config on queue '+qno+' FAIL'
 
         # Check if update successfully
-        response = requests.get(URL+'qos/cos/v1/'+qno, headers=GET_HEADER)
+        response = requests.get(URL+'qos/cos/v1/'+qno,
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query cos data on queue '+qno+' FAIL'
         dscp = response.json()['dscp']
         assert (3 in dscp) and (5 in dscp) and (
@@ -74,12 +81,14 @@ class ECN(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Query all ECN data
-        response = requests.get(URL+'qos/ecn/v1', headers=GET_HEADER)
+        response = requests.get(
+            URL+'qos/ecn/v1', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all ECN data FAIL'
 
         # Query one ECN data
         qno = str(random.randrange(0, 8, 1))
-        response = requests.get(URL+'qos/ecn/v1/'+qno, headers=GET_HEADER)
+        response = requests.get(URL+'qos/ecn/v1/'+qno,
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query ECN data for queue '+qno + ' FAIL'
 
         # Add ECN data
@@ -89,11 +98,12 @@ class ECN(base_tests.SimpleDataPlane):
             "ecn_threshold": threshold
         }
         response = requests.put(
-            URL+'qos/ecn/v1', json=payload, headers=POST_HEADER)
+            URL+'qos/ecn/v1', json=payload, cookies=COOKIES, headers=POST_HEADER)
         assert response.status_code == 200, 'Add ECN data for queue '+qno+' FAIL'
 
         # Check if add successfully
-        response = requests.get(URL+'qos/ecn/v1/'+qno, headers=GET_HEADER)
+        response = requests.get(URL+'qos/ecn/v1/'+qno,
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query ECN data for queue '+qno+' FAIL'
         assert response.json()['queue'] == int(
             qno), 'Add ECN data for queue '+qno+' FAIL'
@@ -101,11 +111,13 @@ class ECN(base_tests.SimpleDataPlane):
             threshold), 'Add ECN data for queue '+qno+' FAIL'
 
         # Delete ecn data
-        response = requests.delete(URL+'qos/ecn/v1/'+qno, headers=GET_HEADER)
+        response = requests.delete(
+            URL+'qos/ecn/v1/'+qno, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete ECN for queue '+qno+' FAIL'
 
         # Check if delete successfully
-        response = requests.get(URL+'qos/ecn/v1', headers=GET_HEADER)
+        response = requests.get(
+            URL+'qos/ecn/v1', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all ECN data FAIL'
         removed = True
         for item in response.json()['ecn']:
@@ -126,7 +138,8 @@ class PFC(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Query a device
-        response = requests.get(URL+'v1/devices', headers=GET_HEADER)
+        response = requests.get(
+            URL+'v1/devices', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query devices FAIL'
         assert len(response.json()[
                    'devices']) > 0, 'Test PFC RestAPI need at least one device'
@@ -134,7 +147,7 @@ class PFC(base_tests.SimpleDataPlane):
 
         # Query a PFC data on a device
         response = requests.get(
-            URL+'qos/pfc/v1/'+device_id, headers=GET_HEADER)
+            URL+'qos/pfc/v1/'+device_id, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query PFC data on a device: '+device_id+' FAIL'
 
         # Add PFC on a device at port_no 1
@@ -145,12 +158,12 @@ class PFC(base_tests.SimpleDataPlane):
             "port": 1
         }
         response = requests.post(
-            URL+'qos/pfc/v1/'+device_id, headers=POST_HEADER, json=payload)
+            URL+'qos/pfc/v1/'+device_id, cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Add PFC on device at prot_no=1 FAIL, device_id='+device_id
 
         # Check if PFC add successfully
         response = requests.get(
-            URL+'qos/pfc/v1/'+device_id, headers=GET_HEADER)
+            URL+'qos/pfc/v1/'+device_id, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query PFC data on a device: '+device_id+' FAIL'
         exist = False
         for item in response.json()['pfcs']:
@@ -161,12 +174,12 @@ class PFC(base_tests.SimpleDataPlane):
 
         # Delete PFC on a device at port_no 1
         response = requests.delete(
-            URL+'qos/pfc/v1/'+device_id+'/1', headers=GET_HEADER)
+            URL+'qos/pfc/v1/'+device_id+'/1', cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete PFC on device_id:'+device_id+' FAIL'
 
         # Check if PFC delete successfully
         response = requests.get(
-            URL+'qos/pfc/v1/'+device_id, headers=GET_HEADER)
+            URL+'qos/pfc/v1/'+device_id, cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query PFC data on a device: '+device_id+' FAIL'
         removed = True
         for item in response.json()['pfcs']:
@@ -186,7 +199,8 @@ class Scheduler(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Query QoS Scheduler
-        response = requests.get(URL+'qos/scheduler/v1', headers=GET_HEADER)
+        response = requests.get(URL+'qos/scheduler/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query QoS Scheduler FAIL'
 
         # Update QoS Scheduler
@@ -197,11 +211,12 @@ class Scheduler(base_tests.SimpleDataPlane):
             ]
         }
         response = requests.put(URL+'qos/scheduler/v1',
-                                headers=POST_HEADER, json=payload)
+                                cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Update QoS Scheduler FAIL'
 
         # Check if Update successfully
-        response = requests.get(URL+'qos/scheduler/v1', headers=GET_HEADER)
+        response = requests.get(URL+'qos/scheduler/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query QoS Scheduler FAIL'
         assert len(response.json()['scheduler']
                    ) > 0, 'Query QoS Scheduler FAIL'
@@ -223,7 +238,8 @@ class Ratelimit(base_tests.SimpleDataPlane):
     def runTest(self):
 
         # Query all Ratelimit data
-        response = requests.get(URL+'qos/ratelimit/v1', headers=GET_HEADER)
+        response = requests.get(URL+'qos/ratelimit/v1',
+                                cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query all Ratelimit data FAIL'
 
         # Set a ratelimit on queue
@@ -234,13 +250,13 @@ class Ratelimit(base_tests.SimpleDataPlane):
             "max_rate": 80
         }
         response = requests.post(
-            URL+'qos/ratelimit/v1', headers=POST_HEADER, json=payload)
+            URL+'qos/ratelimit/v1', cookies=COOKIES, headers=POST_HEADER, json=payload)
         assert response.status_code == 200, 'Set a ratelimit on queue_no:' + \
             str(qno)+' FAIL'
 
         # Check if set successfully
         response = requests.get(
-            URL+'qos/ratelimit/v1/'+str(qno), headers=GET_HEADER)
+            URL+'qos/ratelimit/v1/'+str(qno), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query ratelimit on queue_no:' + \
             str(qno)+' FAIL'
         assert len(response.json()
@@ -253,13 +269,13 @@ class Ratelimit(base_tests.SimpleDataPlane):
 
         # Delete ratelimit
         response = requests.delete(
-            URL+'qos/ratelimit/v1/'+str(qno), headers=GET_HEADER)
+            URL+'qos/ratelimit/v1/'+str(qno), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Delete ratelimit on queue_no:' + \
             str(qno)+' FAIL'
 
         # Check if delete successfully
         response = requests.get(
-            URL+'qos/ratelimit/v1/'+str(qno), headers=GET_HEADER)
+            URL+'qos/ratelimit/v1/'+str(qno), cookies=COOKIES, headers=GET_HEADER)
         assert response.status_code == 200, 'Query ratelimit on queue_no:' + \
             str(qno)+' FAIL'
         assert len(response.json()
