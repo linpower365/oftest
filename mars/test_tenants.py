@@ -183,7 +183,7 @@ class Segment(Tenants):
 
         # delete test tenant
         response = requests.delete(
-            URL + 'v1/tenants/v1/{}'.format(tenant_name), headers=GET_HEADER)
+            URL + 'v1/tenants/v1/{}'.format(tenant_name), cookies=COOKIES, headers=GET_HEADER)
         assert(response.status_code == 200)
 
 
