@@ -10,6 +10,8 @@ import oftest
 import paramiko
 import re
 import auth
+import serial
+from pexpect_serial import SerialSpawn
 from oftest.testutils import *
 from telnetlib import Telnet
 from scapy.layers.l2 import *
@@ -31,6 +33,12 @@ PUT_HEADER = {'Accept': 'application/json'}
 COOKIES = auth.Authentication().login().get_cookies()
 
 LINKS_INSPECT_RETRY_NUM_MAX = 300
+# paramiko.util.log_to_file("./paramiko.log", level="DEBUG")
+
+if cfg.topology == 'sia':
+    console_cfg = {
+        'serial_port': cfg.legacy_1['serial_port']
+    }
 
 
 def wait_for_system_stable():
@@ -45,6 +53,93 @@ def wait_for_seconds(sec):
     time.sleep(sec)
 
 
+def sia_clear_env(of_devices):
+    print ""
+    # clear_all_host_vlans()
+    # clear_all_switch_vlans()
+    # clear_all_host()
+
+    # wait_for_seconds(3)
+
+    # check_all_pending_group()
+
+    # for of_device in of_devices:
+    #     check_pending_group(of_device['id'])
+
+
+def clear_all_host_vlans():
+    response = requests.get(
+        URL+'staticrouting/v1/hostvlans', headers=GET_HEADER)
+    assert response.status_code == 200, 'Get host vlans fail! ' + response.text
+
+    for device in response.json()['hostVlans']:
+        response = requests.delete(
+            URL+'staticrouting/v1/hostvlans/{}'.format(device['deviceId']), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete host vlans fail! ' + response.text
+
+
+def clear_all_switch_vlans():
+    response = requests.get(
+        URL+'staticrouting/v1/devices', headers=GET_HEADER)
+    assert response.status_code == 200, 'Get switch vlans fail! ' + response.text
+
+    for device in response.json()['routings']:
+        response = requests.delete(
+            URL+'staticrouting/v1/vlans/{}'.format(device['deviceId']), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete switch vlans fail! ' + response.text
+
+
+def clear_all_host():
+    response = requests.get(
+        URL+'v1/hosts', headers=GET_HEADER)
+    assert response.status_code == 200, 'Get hosts fail! ' + response.text
+
+    for host in response.json()['hosts']:
+        if host['locations'][0]['port'] != '65535':
+            response = requests.delete(
+                URL+'v1/hosts/{}/{}'.format(host['mac'], host['vlan']), headers=DELETE_HEADER)
+            assert response.status_code == 204, 'Delete host fail! ' + response.text
+
+
+def check_pending_group(device_id):
+    while True:
+        has_pending_group = False
+
+        response = requests.get(
+            URL+'v1/groups/{}'.format(device_id), headers=GET_HEADER)
+        assert response.status_code == 200, 'Get switch vlans fail! ' + response.text
+
+        for group in response.json()['groups']:
+            if re.search('pending', group['state'].lower()):
+                has_pending_group = True
+
+        if has_pending_group:
+            wait_for_seconds(2)
+        else:
+            break
+
+
+def check_all_pending_group():
+    start_time = time.time()
+    while True:
+        has_pending_group = False
+
+        response = requests.get(
+            URL + 'v1/groups', headers=GET_HEADER)
+        assert response.status_code == 200, 'Get switch vlans fail! ' + response.text
+
+        for group in response.json()['groups']:
+            if re.search('pending', group['state'].lower()):
+                has_pending_group = True
+
+        if has_pending_group:
+            wait_for_seconds(2)
+        else:
+            break
+
+    print '\n\n Waiting pending time: {}s \n'.format(time.time()-start_time)
+
+
 def route_add(host, subnet, gateway):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -53,6 +148,29 @@ def route_add(host, subnet, gateway):
     stdin, stdout, stderr = client.exec_command(
         'sudo route add -net {}/24 gw {}'.format(subnet, gateway))
     client.close()
+
+
+def host_ip(host, gateway='', vlan='', debug=False):
+    if gateway == '':
+        host_ip_list = host['ip'].split('.')
+        host_ip_list[3] = '254'
+        gw = '.'.join(host_ip_list)
+    else:
+        gw = gateway
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(host['mgmt_ip'], 22, username=host['username'],
+                   password=host['password'], timeout=5)
+    stdin, stdout, stderr = client.exec_command(
+        'sh change_ip.sh {} {} {}'.format(host['ip'], gw, vlan))
+    ping_result = stdout.read()
+    client.close()
+
+    if debug == True:
+        print(ping_result)
+
+    return ping_result
 
 
 def ping_test(host, target_ip, debug=False):
@@ -559,6 +677,197 @@ def setup_power():
         rp_spine1.Off()
     else:
         rp_spine1.On()
+
+
+def legacy_switch_untag_setting():
+    con = Console(console_cfg).connect().login()
+    con.set_port_join_untag_vlan(port='9', vlan='60')
+    con.set_port_join_untag_vlan(port='10', vlan='70')
+    con.set_port_native_vlan(port='9', pvid='60')
+    con.set_port_native_vlan(port='10', pvid='70')
+
+
+def legacy_switch_tag_setting():
+    con = Console(console_cfg).connect().login()
+    con.set_port_join_tag_vlan(port='9', vlan='60')
+    con.set_port_join_tag_vlan(port='10', vlan='70')
+    con.set_port_native_vlan(port='9', pvid='60')
+    con.set_port_native_vlan(port='10', pvid='70')
+
+
+def legacy_switch_same_vlan_different_subnet_setting():
+    con = Console(console_cfg).connect().login()
+    con.set_port_join_untag_vlan(port='9', vlan='80')
+    con.set_port_join_untag_vlan(port='10', vlan='80')
+    con.set_port_native_vlan(port='9', pvid='80')
+    con.set_port_native_vlan(port='10', pvid='80')
+
+
+def legacy_switch_create_vlan():
+    con = Console(console_cfg).connect().login()
+    cmd_list = [
+        'config',
+        'vlan database',
+        'vlan 60',
+        'vlan 70',
+        'vlan 80',
+        'end'
+    ]
+
+    for cmd in cmd_list:
+        con.cmd_pair(cmd, '#')
+
+
+def legacy_switch_set_port1():
+    con = Console(console_cfg).connect().login()
+    cmd_list = [
+        'config',
+        'int eth 1/1',
+        'switchport allowed vlan add 60 tagged',
+        'switchport allowed vlan add 70 tagged',
+        'switchport allowed vlan add 80 tagged',
+        'end'
+    ]
+
+    for cmd in cmd_list:
+        con.cmd_pair(cmd, '#')
+
+
+def legacy_switch_set_lldp_tx_interval():
+    con = Console(console_cfg).connect().login()
+    cmd_list = [
+        'config',
+        'lldp refresh-interval 8',
+        'end'
+    ]
+
+    for cmd in cmd_list:
+        con.cmd_pair(cmd, '#')
+
+
+class Console():
+    def __init__(self, cfg):
+        self._cfg = cfg
+        self._ss = None
+
+    def connect(self):
+        try:
+            ser = serial.Serial(self._cfg['serial_port'])
+        except serial.serialutil.SerialException:
+            sys.exit()
+
+        ser.baudrate = 115200
+        ser.bytesize = 8
+        ser.stopbits = 1
+        ser.xonxoff = 0
+        ser.rtscts = 0
+        ser.timeout = 0
+
+        self._ss = SerialSpawn(ser)
+
+        return self
+
+    def login(self):
+        self._ss.write('\r')
+        self._ss.write('\r')
+        while True:
+            index = self._ss.expect(['Username:', 'Password:', '#'])
+            if (index == 0):
+                time.sleep(1)
+                self._ss.write('admin\r')
+            elif (index == 1):
+                time.sleep(1)
+                self._ss.write('admin\r')
+            elif (index == 2):
+                break
+            else:
+                print "\n<<<<<< No string match! >>>>>>\n"
+
+        return self
+
+    def test_cmd(self):
+        self._ss.write('config\r')
+        self._ss.expect('#')
+        self._ss.write('end\r')
+        self._ss.expect('#')
+        # print("'{}'".format(self._ss.before))
+
+    def set_port_native_vlan(self, port='', pvid=''):
+        cmd_list = [
+            'config',
+            'int eth 1/{}'.format(port),
+            'switchport native vlan {}'.format(pvid),
+            'end'
+        ]
+
+        for cmd in cmd_list:
+            self.cmd_pair(cmd, '#')
+
+    def set_port_join_untag_vlan(self, port='', vlan=''):
+        cmd_list = [
+            'config',
+            'int eth 1/{}'.format(port),
+            'switchport allowed vlan add {} untagged'.format(vlan),
+            'end'
+        ]
+
+        for cmd in cmd_list:
+            self.cmd_pair(cmd, '#')
+
+    def set_port_join_tag_vlan(self, port='', vlan=''):
+        cmd_list = [
+            'config',
+            'int eth 1/{}'.format(port),
+            'switchport allowed vlan add {} tagged'.format(vlan),
+            'end'
+        ]
+
+        for cmd in cmd_list:
+            self.cmd_pair(cmd, '#')
+
+    def cmd_pair(self, send, expect):
+        self._ss.write('{}\r'.format(send))
+        self._ss.expect('{}'.format(expect))
+
+
+class Host():
+    def __init__(self, cfg):
+        self._cfg = cfg
+
+    def exec_host_cmd(self, content, debug=False):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(self._cfg['mgmt_ip'], 22, username=self._cfg['username'],
+                       password=self._cfg['password'], timeout=5)
+        stdin, stdout, stderr = client.exec_command(content)
+        result = stdout.read()
+        client.close()
+
+        if debug == True:
+            print(result)
+
+        return result
+
+    def set_ip(self, gateway='', vlan='', debug=False):
+        if gateway == '':
+            host_ip_list = self._cfg['ip'].split('.')
+            host_ip_list[3] = '254'
+            gw = '.'.join(host_ip_list)
+        else:
+            gw = gateway
+
+        self.exec_host_cmd('sh change_ip.sh {} {} {}'.format(
+            self._cfg['ip'], gw, vlan), debug)
+
+        return self
+
+    def ping(self, ip, count=10, debug=True):
+        expected_str = '64 bytes from ' + ip
+
+        if re.search(expected_str, self.exec_host_cmd('ping -c {} {}'.format(count, ip), debug)):
+            return 'success'
+        else:
+            return 'failure'
 
 
 class RemotePower():
@@ -1764,3 +2073,134 @@ class SwitchLogicalPort():
         assert response.status_code == 200, 'Get switch portchannel fail! ' + response.text
 
         return response.json()
+
+
+class RebootSwitch():
+    def __init__(self, device_id):
+        self._device_id = device_id
+
+    def reboot(self):
+        response = requests.post(
+            URL+'switchmgmt/v1/reboot/{}'.format(self._device_id), headers=POST_HEADER)
+        assert response.status_code == 200, 'Reboot switch fail! ' + response.text
+        time.sleep(1)
+
+
+class StaticRouting():
+    def __init__(self):
+        self._host_vlan_cfg_list = []
+        self._switch_vlan_cfg_list = []
+        self._rest_switch_vlan_cfg_list = []
+
+    def add_switch_vlan(self, device_id, vlan_id, subnets, tag_ports=[], untag_ports=[]):
+        switch_vlan = {
+            'deviceId': device_id,
+            'vlanId': vlan_id,
+            'subnets': subnets,
+            "tagPorts": tag_ports,
+            "untagPorts": untag_ports
+        }
+
+        self._switch_vlan_cfg_list.append(switch_vlan)
+
+        return self
+
+    def add_rest_switch_vlan(self, device_id, vlan_id, primary, subnets, tag_ports=[], untag_ports=[]):
+        switch_vlan = {
+            'deviceId': device_id,
+            'vlanId': vlan_id,
+            'primary': primary,
+            'subnets': subnets,
+            "tagPorts": tag_ports,
+            "untagPorts": untag_ports
+        }
+
+        self._rest_switch_vlan_cfg_list.append(switch_vlan)
+
+        return self
+
+    def add_host_vlan(self, cfg):
+        self._host_vlan_cfg_list.append(cfg)
+
+        return self
+
+    def del_host_vlan(self, device_id, vlan_id):
+        response = requests.delete(
+            URL+'staticrouting/v1/hostvlans/{}/{}'.format(device_id, vlan_id), headers=DELETE_HEADER)
+        assert response.status_code == 200, 'Delete host vlans fail! ' + response.text
+
+        return self
+
+    def build_host_vlan(self, cfg):
+        payload = {
+            "deviceId": cfg['deviceId'],
+            "vlanId": cfg['vlanId'],
+            "tagPorts": cfg['tagPorts'],
+            "untagPorts": cfg['untagPorts']
+        }
+
+        response = requests.post(
+            URL+'staticrouting/v1/hostvlans', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add host vlan fail! ' + response.text
+
+        return self
+
+    def build_switch_vlan(self, cfg):
+        payload = {
+            "deviceId": cfg['deviceId'],
+            "vlanId": cfg['vlanId'],
+            "subnets": cfg['subnets'],
+            "tagPorts": cfg['tagPorts'],
+            "untagPorts": cfg['untagPorts']
+        }
+
+        response = requests.post(
+            URL+'staticrouting/v1/vlans', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add switch vlan fail! ' + response.text
+
+        return self
+
+    def build_rest_switch_vlan(self, cfg):
+        payload = {
+            "deviceId": cfg['deviceId'],
+            "vlanId": cfg['vlanId'],
+            "primary": cfg['primary'],
+            "subnets": cfg['subnets'],
+            "tagPorts": cfg['tagPorts'],
+            "untagPorts": cfg['untagPorts']
+        }
+
+        response = requests.post(
+            URL+'staticrouting/v1/vlans', json=payload, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add rest switch vlan fail! ' + response.text
+
+        return self
+
+    def build(self):
+        for cfg in self._switch_vlan_cfg_list:
+            self.build_switch_vlan(cfg)
+        for cfg in self._rest_switch_vlan_cfg_list:
+            self.build_rest_switch_vlan(cfg)
+        for cfg in self._host_vlan_cfg_list:
+            self.build_host_vlan(cfg)
+
+        return self
+
+
+class StaticHost():
+    def __init__(self, cfg):
+        self._cfg = cfg
+
+    def build(self):
+        payload = {
+            "mac": self._cfg['mac'],
+            "vlan": self._cfg['vlan'],
+            "ipAddresses": self._cfg['ipAddresses'],
+            "locations": self._cfg['locations']
+        }
+
+        response = requests.post(
+            URL+'v1/hosts', json=payload, headers=POST_HEADER)
+        assert response.status_code == 201, 'Add static host fail! ' + response.text
+
+        return self

@@ -146,10 +146,14 @@ dhcp_server = {
 }
 
 total_dut = [spine0, spine1, leaf0, leaf1]
+topology = 'clos'
 
 if config['test_topology'] == 'scatter':
+    topology = 'scatter'
     devices = [spine0, leaf0, leaf1]
     spines = [spine0]
+elif config['test_topology'] == 'sia':
+    topology = 'sia'
 else:
     devices = total_dut
     spines = [spine0, spine1]
