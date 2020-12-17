@@ -2204,3 +2204,319 @@ class StaticHost():
         assert response.status_code == 201, 'Add static host fail! ' + response.text
 
         return self
+
+
+# Qos Policy class and function
+class ClassMapCfg():
+    def __init__(self, name):
+        self._name = name
+        self._device_id = ''
+        self._layer = 0
+        self._match_list = []
+
+    def device(self, device_id):
+        self._device_id = device_id
+
+        return self
+
+    def match(self, type='', option=''):
+        if type == 'vlan' or type == 'cos':
+            self._layer = 2
+        elif type == 'dscp' or type == 'precedence':
+            self._layer = 3
+
+        self._match_list.append({"type": type, "option": option})
+
+        return self
+
+    def create(self):
+        cfg = {
+            "deviceId": self._device_id,
+            "classMap": [
+                {
+                    "name": self._name,
+                    "layer": self._layer,
+                    "matches": self._match_list
+                }
+            ]
+        }
+
+        return cfg
+
+
+class PolicyMapCfg():
+    def __init__(self, name):
+        self._name = name
+        self._class_map_name = ''
+        self._cos = 0
+        self._phb = 0
+        self._flow = {}
+        self._device_id = ''
+
+    def device(self, device_id):
+        self._device_id = device_id
+        return self
+
+    def class_map(self, name):
+        self._class_map_name = name
+        return self
+
+    def cos(self, value):
+        self._cos = value
+        return self
+
+    def phb(self, value):
+        self._phb = value
+        return self
+
+    def flow(self, cir=None, bc=None, conform=None, violate=None):
+        self._flow['cir'] = cir
+        self._flow['bc'] = bc
+        self._flow['conform'] = conform
+        self._flow['violate'] = violate
+
+        return self
+
+    def create(self):
+        assert (self._cos != 0 and self._phb !=
+                0) == False, 'only can set either cos or phb'
+
+        cfg = {
+            "policyMap": [
+                {
+                    "name": self._name,
+                    "classes": [
+                        {
+                            "name": self._class_map_name,
+                        }
+                    ]
+                }
+            ]
+        }
+
+        if self._cos != 0:
+            cfg['policyMap'][0]['classes'][0]['cos'] = self._cos
+        elif self._phb != 0:
+            cfg['policyMap'][0]['classes'][0]['phb'] = self._phb
+
+        if self._flow:
+            cfg['policyMap'][0]['classes'][0]['flow'] = self._flow
+
+        if self._device_id:
+            cfg['deviceId'] = self._device_id
+
+        return cfg
+
+
+class ServicesCfg():
+    def __init__(self):
+        self._policy_map_name = ''
+        self._port_list = []
+        self._device_id = ''
+
+    def device(self, device_id):
+        self._device_id = device_id
+        return self
+
+    def policy_map(self, policy_map_name):
+        self._policy_map_name = policy_map_name
+        return self
+
+    def port(self, port_id):
+        self._port_list.append(port_id)
+        return self
+
+    def create(self):
+        cfg = {
+            "services": [
+                {
+                    "name": self._policy_map_name,
+                    "ports": self._port_list
+                }
+            ]
+        }
+
+        if self._device_id:
+            cfg['deviceId'] = self._device_id
+
+        return cfg
+
+
+class ClassMap():
+    def __init__(self, cfg, multiple=False):
+        self._cfg = cfg
+        self._multiple = multiple
+        if not self._multiple:
+            self._device_id = cfg['deviceId']
+
+    def create(self):
+        if not self._multiple:
+            payload = {
+                "classMap": self._cfg['classMap']
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/{}/classmap'.format(self._device_id), json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add class map fail! ' + response.text
+        else:
+            payload = {
+                "devices": self._cfg
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/classmap', json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add class map fail! ' + response.text
+
+    def retrieve(self):
+        if not self._multiple:
+            response = requests.get(
+                URL+'qospolicy/v1/{}/classmap'.format(self._device_id), cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get class map fail! ' + response.text
+
+            return response.json()['classMap']
+        else:
+            response = requests.get(
+                URL+'qospolicy/v1/classmap', cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get class map fail! ' + response.text
+
+            return response.json()['devices']
+
+    def delete(self):
+        if not self._multiple:
+            response = requests.delete(
+                URL+'qospolicy/v1/{}/classmap'.format(self._device_id), cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete class map fail! ' + response.text
+        else:
+            response = requests.delete(
+                URL+'qospolicy/v1/classmap', cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete class map fail! ' + response.text
+
+    def update(self, cfg):
+        if not self._multiple:
+            payload = {
+                "classMap": cfg['classMap']
+            }
+
+            response = requests.put(
+                URL+'qospolicy/v1/{}/classmap'.format(self._device_id), json=payload, cookies=COOKIES, headers=PUT_HEADER)
+            assert response.status_code == 200, 'Modify class map fail! ' + response.text
+
+
+class PolicyMap():
+    def __init__(self, cfg, device_id=None, multiple=False):
+        self._cfg = cfg
+        self._multiple = multiple
+        if not self._multiple:
+            self._device_id = device_id
+
+    def create(self):
+        if not self._multiple:
+            payload = {
+                "policyMap": self._cfg['policyMap']
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/{}/policymap'.format(self._device_id), json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add policy map fail! ' + response.text
+        else:
+            payload = {
+                "devices": self._cfg
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/policymap', json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add policy map fail! ' + response.text
+
+    def retrieve(self):
+        if not self._multiple:
+            response = requests.get(
+                URL+'qospolicy/v1/{}/policymap'.format(self._device_id), cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get policy map fail! ' + response.text
+
+            return response.json()['policyMap']
+        else:
+            response = requests.get(
+                URL+'qospolicy/v1/policymap', cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get policy map fail! ' + response.text
+
+            return response.json()['devices']
+
+    def delete(self):
+        if not self._multiple:
+            response = requests.delete(
+                URL+'qospolicy/v1/{}/policymap'.format(self._device_id), cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete policy map fail! ' + response.text
+        else:
+            response = requests.delete(
+                URL+'qospolicy/v1/policymap', cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete policy map fail! ' + response.text
+
+    def update(self, cfg):
+        if not self._multiple:
+            payload = {
+                "policyMap": cfg['policyMap']
+            }
+
+            response = requests.put(
+                URL+'qospolicy/v1/{}/policymap'.format(self._device_id), json=payload, cookies=COOKIES, headers=PUT_HEADER)
+            assert response.status_code == 200, 'Modify policy map fail! ' + response.text
+
+
+class Services():
+    def __init__(self, cfg, device_id=None, multiple=False):
+        self._cfg = cfg
+        self._multiple = multiple
+        if not self._multiple:
+            self._device_id = device_id
+
+    def create(self):
+        if not self._multiple:
+            payload = {
+                "services": self._cfg['services']
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/{}/services'.format(self._device_id), json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add services fail! ' + response.text
+        else:
+            payload = {
+                "devices": self._cfg
+            }
+
+            response = requests.post(
+                URL+'qospolicy/v1/services', json=payload, cookies=COOKIES, headers=POST_HEADER)
+            assert response.status_code == 200, 'Add services fail! ' + response.text
+
+    def retrieve(self):
+        if not self._multiple:
+            response = requests.get(
+                URL+'qospolicy/v1/{}/services'.format(self._device_id), cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get services fail! ' + response.text
+
+            return response.json()['services']
+        else:
+            response = requests.get(
+                URL+'qospolicy/v1/services', cookies=COOKIES, headers=GET_HEADER)
+            assert response.status_code == 200, 'Get services fail! ' + response.text
+
+            return response.json()['devices']
+
+    def delete(self):
+        if not self._multiple:
+            response = requests.delete(
+                URL+'qospolicy/v1/{}/services'.format(self._device_id), cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete services fail! ' + response.text
+        else:
+            response = requests.delete(
+                URL+'qospolicy/v1/services', cookies=COOKIES, headers=DELETE_HEADER)
+            assert response.status_code == 200, 'Delete services fail! ' + response.text
+
+    def update(self, cfg):
+        if not self._multiple:
+            payload = {
+                "services": cfg['services']
+            }
+
+            response = requests.put(
+                URL+'qospolicy/v1/{}/services'.format(self._device_id), json=payload, cookies=COOKIES, headers=PUT_HEADER)
+            assert response.status_code == 200, 'Modify policy map fail! ' + response.text
