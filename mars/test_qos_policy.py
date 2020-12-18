@@ -2,6 +2,28 @@
 ref: http://docs.python-requests.org/zh_CN/latest/user/quickstart.html
 
 Test QoS Policy RestAPI.
+
+Test environment
+
+    +--------+
+    | spine0 |
+    +--------+
+   49 |  | 50
+      |  +------------+
+   49 |            49 |
+    +--------+     +--------+
+    |  leaf0 |     |  leaf1 |
+    +--------+     +--------+
+      |    |         |    |
+      p0   p1        p2   p3
+      |    |         |    |
+    host0 host1    host2 host3
+
+p0: port A of leaf0
+p1: port B of leaf0
+p2: port A of leaf1
+p3: port B of leaf1
+
 """
 
 
@@ -12,14 +34,12 @@ import time
 import random
 import auth
 from utils import *
+from oftest import config
 
 
 class QoSPolicyTest(base_tests.SimpleDataPlane):
     def setUp(self):
         base_tests.SimpleDataPlane.setUp(self)
-
-        # setup_configuration()
-        # port_configuration()
 
     def tearDown(self):
         base_tests.SimpleDataPlane.tearDown(self)
@@ -1063,3 +1083,239 @@ class MultipleDeviceServicesDeleteTest(QoSPolicyTest):
         policy_map.delete()
         class_map1.delete()
         class_map2.delete()
+
+
+class SingleDeviceBasicOperationTest(QoSPolicyTest):
+    """
+    Test basic operation feature for single device
+    """
+
+    def runTest(self):
+        port_configuration()
+
+        class_map_cfg = (
+            ClassMapCfg('classA')
+            .device(cfg.leaf0['id'])
+            .match('vlan', 10)
+            .create()
+        )
+
+        class_map = ClassMap(class_map_cfg)
+        class_map.create()
+
+        policy_map_cfg = (
+            PolicyMapCfg('policyA')
+            .class_map('classA')
+            .cos(7)
+            .create()
+        )
+
+        policy_map = PolicyMap(policy_map_cfg, cfg.leaf0['id'])
+        policy_map.create()
+
+        services_cfg = (
+            ServicesCfg()
+            .policy_map('policyA')
+            .port(cfg.leaf0['portA'].number)
+            .create()
+        )
+
+        services = Services(services_cfg, cfg.leaf0['id'])
+        services.create()
+
+        vlan_id = 10
+        ports = sorted(config["port_map"].keys())
+
+        vlan_cfg_sw1 = {}
+        vlan_cfg_sw1['device-id'] = cfg.leaf0['id']
+        vlan_cfg_sw1['ports'] = [
+            {
+                "port": 46,
+                "native": vlan_id,
+                "mode": "hybrid",
+                "vlans": [
+                    str(vlan_id) + "/untag"
+                ]
+            },
+            {
+                "port": 48,
+                "native": vlan_id,
+                "mode": "hybrid",
+                "vlans": [
+                    str(vlan_id) + "/tag"
+                ]
+            }
+        ]
+
+        vlan_sw1 = StaticVLAN(vlan_cfg_sw1).build()
+
+        wait_for_seconds(3)
+
+        pkt_from_p0_to_p1 = simple_tcp_packet(
+            pktlen=68,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            eth_dst=cfg.host1['mac'],
+            eth_src=cfg.host0['mac'],
+            ip_dst=cfg.host1['ip'],
+            ip_src=cfg.host0['ip']
+        )
+
+        expected_pkt = simple_tcp_packet(
+            pktlen=68,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            vlan_pcp=7,
+            eth_dst=cfg.host1['mac'],
+            eth_src=cfg.host0['mac'],
+            ip_dst=cfg.host1['ip'],
+            ip_src=cfg.host0['ip']
+        )
+
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p1))
+        verify_packet(self, str(expected_pkt), ports[1])
+
+        # clear
+        services.delete()
+        policy_map.delete()
+        class_map.delete()
+
+
+class MultipleDeviceBasicOperationTest(QoSPolicyTest):
+    """
+    Test basic operation feature for multiple device
+    """
+
+    def runTest(self):
+        port_configuration()
+        vlan_id = 20
+
+        class_map_cfg1 = (
+            ClassMapCfg('classA')
+            .device(cfg.leaf0['id'])
+            .match('vlan', vlan_id)
+            .create()
+        )
+        class_map_cfg2 = (
+            ClassMapCfg('classB')
+            .device(cfg.leaf1['id'])
+            .match('cos', 3)
+            .create()
+        )
+
+        class_map_cfg_list = [
+            class_map_cfg1,
+            class_map_cfg2
+        ]
+
+        class_map = ClassMap(class_map_cfg_list, multiple=True)
+        class_map.create()
+
+        policy_map_cfg1 = (
+            PolicyMapCfg('policyA')
+            .device(cfg.leaf0['id'])
+            .class_map('classA')
+            .cos(3)
+            .create()
+        )
+        policy_map_cfg2 = (
+            PolicyMapCfg('policyB')
+            .device(cfg.leaf1['id'])
+            .class_map('classB')
+            .cos(5)
+            .create()
+        )
+
+        policy_map_cfg_list = [
+            policy_map_cfg1,
+            policy_map_cfg2
+        ]
+
+        policy_map = PolicyMap(policy_map_cfg_list, multiple=True)
+        policy_map.create()
+
+        services_cfg1 = (
+            ServicesCfg()
+            .device(cfg.leaf0['id'])
+            .policy_map('policyA')
+            .port(cfg.leaf0['portA'].number)
+            .create()
+        )
+        services_cfg2 = (
+            ServicesCfg()
+            .device(cfg.leaf1['id'])
+            .policy_map('policyB')
+            .port(49)
+            .create()
+        )
+
+        services_cfg_list = [
+            services_cfg1,
+            services_cfg2
+        ]
+
+        services = Services(services_cfg_list, multiple=True)
+        services.create()
+
+        ports = sorted(config["port_map"].keys())
+
+        vlan_cfg_sw1 = {}
+        vlan_cfg_sw1['device-id'] = cfg.leaf0['id']
+        vlan_cfg_sw1['ports'] = [
+            {
+                "port": 46,
+                "native": vlan_id,
+                "mode": "hybrid",
+                "vlans": [
+                    str(vlan_id) + "/untag"
+                ]
+            }
+        ]
+
+        vlan_cfg_sw2 = {}
+        vlan_cfg_sw2['device-id'] = cfg.leaf1['id']
+        vlan_cfg_sw2['ports'] = [
+            {
+                "port": 48,
+                "native": vlan_id,
+                "mode": "hybrid",
+                "vlans": [
+                    str(vlan_id) + "/tag"
+                ]
+            }
+        ]
+
+        vlan_sw1 = StaticVLAN(vlan_cfg_sw1).build()
+        vlan_sw2 = StaticVLAN(vlan_cfg_sw2).build()
+
+        wait_for_seconds(3)
+
+        pkt_from_p0_to_p3 = simple_tcp_packet(
+            pktlen=68,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            vlan_pcp=2,
+            eth_dst=cfg.host1['mac'],
+            eth_src=cfg.host0['mac'],
+            ip_dst=cfg.host1['ip'],
+            ip_src=cfg.host0['ip']
+        )
+
+        expected_pkt = simple_tcp_packet(
+            pktlen=68,
+            dl_vlan_enable=True,
+            vlan_vid=vlan_id,
+            vlan_pcp=5,
+            eth_dst=cfg.host1['mac'],
+            eth_src=cfg.host0['mac'],
+            ip_dst=cfg.host1['ip'],
+            ip_src=cfg.host0['ip']
+        )
+
+        self.dataplane.send(ports[0], str(pkt_from_p0_to_p3))
+        verify_packet(self, str(expected_pkt), ports[3])
+
+        # clear
+        services.delete()
+        policy_map.delete()
+        class_map.delete()
