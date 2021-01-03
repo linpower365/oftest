@@ -1687,6 +1687,71 @@ class Configuration():
         assert response.status_code == 204, 'save as boot default config fail! ' + response.text
 
 
+class ACL():
+    def __init__(self, acl_cfg):
+        self._acl_cfg = acl_cfg
+
+    def build(self):
+        #print("debug build _acl_cfg", self._acl_cfg['device-id'])
+        #print("debug", self._acl_cfg['ports'])
+        payload = {"devices": self._acl_cfg['device-id']}
+        payload.update(self._acl_cfg['data'])
+        # payload = {
+        #     "devices": self._acl_cfg['device-id'],
+        #     # "ports" : self._acl_cfg['ports']
+        #     "ports": [1],
+        #     "direction": "true",
+        #     "action": "permit",
+        #     "mac": {
+        #         "srcMac": "11:11:11:11:11:11",
+        #         "srcMacMask": "FF:FF:FF:FF:FF:FF"
+        #     }
+        # }
+        #print("debug payload:", payload)
+        response = requests.post(URL+'acl/v1/policy', json=payload, cookies=COOKIES, headers=POST_HEADER)
+        assert response.status_code == 200, 'Add ACL rule fail! ' + response.text
+        return self
+
+    def delete_deviceById(self, device_id):
+        response = requests.delete(
+            URL+'acl/v1/policy/{}'.format(device_id), cookies=COOKIES, headers=DELETE_HEADER)
+        assert response.status_code == 200, 'delete acl rule fail! ' + response.text
+        return None
+
+    def delete_deviceSpecifyRuleId(self, device_id, policy_id):
+        response = requests.delete(
+            URL+'acl/v1/policy/{}/{}'.format(device_id, policy_id), cookies=COOKIES, headers=DELETE_HEADER)
+        assert response.status_code == 200, 'delete acl rule fail! ' + response.text
+        return None
+
+    def get_device(self):
+        response = requests.get(
+            URL+'acl/v1/policy/device', cookies=COOKIES, headers=GET_HEADER)
+        assert response.status_code == 200, 'get all device status fail! ' + response.text
+        #print("debug get devie response.text:", response.text)
+        #print("debug get devie response.json:", response.json())
+        return response.json()
+
+    def get_deviceById(self, device_id):
+        response = requests.get(
+            URL+'acl/v1/policy/device/{}'.format(device_id), cookies=COOKIES, headers=GET_HEADER)
+        assert response.status_code == 200, 'get device status fail! ' + response.text
+        #print("Debug {}".format(device_id), response.text)
+        if device_id in response.json():
+            return response.json()[device_id]
+        else:
+            return None
+
+    def get_port(self, port_id):
+        response = requests.get(
+            URL+'vlan/v1/vlan-config/{}/ports'.format(self._vlan_cfg['device-id']), cookies=COOKIES, headers=GET_HEADER)
+        assert response.status_code == 200, 'get ports fail! ' + response.text
+        for port in response.json()['ports']:
+            if port['port'] == port_id:
+                return port
+        return None
+
+
 class StaticVLAN():
     def __init__(self, vlan_cfg):
         self._vlan_cfg = vlan_cfg
@@ -1696,6 +1761,12 @@ class StaticVLAN():
             URL+'vlan/v1/vlan-config/{}/port/{}'.format(self._vlan_cfg['device-id'], del_cfg['port']), cookies=COOKIES, headers=DELETE_HEADER)
         assert response.status_code == 200, 'delete port fail! ' + response.text
 
+        return self
+
+    def delete_DevieIdNoVerify(self, del_cfg):
+        response = requests.delete(
+            URL+'vlan/v1/vlan-config/{}'.format(del_cfg['device-id']), cookies=COOKIES, headers=DELETE_HEADER)
+        #assert response.status_code == 200, 'delete port fail! ' + response.text
         return self
 
     def get_port(self, port_id):
